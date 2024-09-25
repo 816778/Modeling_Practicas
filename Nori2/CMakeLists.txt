@@ -85,6 +85,7 @@ add_executable(nori
   src/mesh.cpp
   src/microfacet.cpp
   src/mirror.cpp
+  src/normals.cpp
   src/obj.cpp
   src/object.cpp
   src/parser.cpp
