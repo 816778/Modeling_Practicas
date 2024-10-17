@@ -121,5 +121,5 @@ protected:
 
 
 NORI_REGISTER_CLASS(BitmapTexture, "textmap")
-NORI_REGISTER_CLASS(CheckerTexture, "checker")
+NORI_REGISTER_CLASS(CheckerTexture, "checker_")
 NORI_NAMESPACE_END
