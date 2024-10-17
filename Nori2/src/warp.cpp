@@ -93,7 +93,7 @@ Point2f Warp::squareToUniformTriangle(const Point2f& sample) {
         t = 1.0f - t;
     }
     
-    return Point2f(s, t); 
+    return Point2f(s, t);
 }
 
 float Warp::squareToUniformTrianglePdf(const Point2f& p) {
