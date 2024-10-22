@@ -71,11 +71,16 @@ float Warp::squareToTentPdf(const Point2f &p) {
     return tent1DPdf(p.x()) * tent1DPdf(p.y());
 }
 
+/*
+transformar puntos que están uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a puntos distribuidos uniformemente 
+en un disco de radio 1 centrado en el origen (0,0)
+*/
 Point2f Warp::squareToUniformDisk(const Point2f &sample) {
     float r = std::sqrt(sample.x());
     float theta = 2.0f * M_PI * sample.y();
     return Point2f(r * std::cos(theta), r * std::sin(theta));
 }
+
 
 float Warp::squareToUniformDiskPdf(const Point2f &p) {
     if (p.x() * p.x() + p.y() * p.y() <= 1.0f) {
@@ -84,6 +89,9 @@ float Warp::squareToUniformDiskPdf(const Point2f &p) {
     return 0.0f;
 }
 
+/*
+Transforma puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a puntos distribuidos uniformemente en un triángulo.
+*/
 Point2f Warp::squareToUniformTriangle(const Point2f& sample) {
     float s = sample.x();
     float t = sample.y();
@@ -96,50 +104,119 @@ Point2f Warp::squareToUniformTriangle(const Point2f& sample) {
     return Point2f(s, t);
 }
 
+/*
+calcula la función de densidad de probabilidad (PDF) para un punto p en un triángulo.
+*/
 float Warp::squareToUniformTrianglePdf(const Point2f& p) {
-    if (p.x() >= 0.0f && p.y() >= 0.0f && (p.x() + p.y() <= 1.0f)) {
-        return 1.0f; 
+    Point2f A(0.0f, 0.0f);  // Vértice A
+    Point2f B(1.0f, 0.0f);  // Vértice B
+    Point2f C(0.0f, 1.0f);
+
+    float area = 0.5f * std::abs(A.x() * (B.y() - C.y()) +
+                                 B.x() * (C.y() - A.y()) +
+                                 C.x() * (A.y() - B.y()));
+
+    if (p.x() < 0.0f || p.y() < 0.0f || (p.x() + p.y()) > 1.0f) {
+        return 0.0f;  // El punto está fuera del triángulo, PDF es 0
     }
-    return 0.0f;
+
+    return 1.0f/area;
 }
 
+/*
+transformar puntos que están uniformemente distribuidos en un cuadrado unitario  [0,1]×[0,1] 
+en puntos uniformemente distribuidos en la superficie de una esfera en 3D
+*/
 Vector3f Warp::squareToUniformSphere(const Point2f &sample) {
-    float z = 1.0f - 2.0f * sample.x(); // Map to [-1, 1]
+    float z = 1.0f - 2.0f * sample.x(); 
     float r = std::sqrt(std::max(0.0f, 1.0f - z * z)); // Radius of the circle at z
     float phi = 2.0f * M_PI * sample.y();
     return Vector3f(r * std::cos(phi), r * std::sin(phi), z);   
 }
 
+/*
+Calcula la función de densidad de probabilidad (PDF) para un punto v en la superficie de una esfera unitaria. 
+*/
 float Warp::squareToUniformSpherePdf(const Vector3f &v) {
     if (std::abs(v.norm() - 1.0f) < 1e-6) { // Check if point lies on the sphere
         return 1.0f / (4.0f * M_PI); // Area of unit sphere is 4π
     }
-    return 0.0f;}
+    return 0.0f;
+}
 
+/*
+transforma un punto uniformemente distribuido en un cuadrado unitario [0,1]×[0,1] en un punto 
+uniformemente distribuido en la superficie de una hemisferio unitaria en 3D.
+*/
 Vector3f Warp::squareToUniformHemisphere(const Point2f &sample) {
     float z = 1.0f - 2.0f * sample.x(); // Map to [-1, 1]
     float r = std::sqrt(std::max(0.0f, 1.0f - z * z)); // Radius of the circle at z
     float phi = M_PI * sample.y();
-    return Vector3f(r * std::cos(phi), r * std::sin(phi), z);   }
+    return Vector3f(r * std::cos(phi), r * std::sin(phi), z);   
+}
 
+/*
+FIXME: calcular la función de densidad de probabilidad (PDF) para un punto v que se encuentra en la superficie de una hemisferio unitaria
+*/
 float Warp::squareToUniformHemispherePdf(const Vector3f &v) {
-    throw NoriException("Warp::squareToUniformHemispherePdf() is not yet implemented!");
+    if (v.z() < 0.0f || v.norm() != 1.0f) {
+        return 0.0f;  
+    }
+    
+    return 1.0f / (2.0f * M_PI);
 }
 
+/*
+FIXME: A diferencia de la distribución uniforme, en una distribución cosenoidal, los puntos están más concentrados alrededor del eje z
+*/
 Vector3f Warp::squareToCosineHemisphere(const Point2f &sample) {
-    throw NoriException("Warp::squareToCosineHemisphere() is not yet implemented!");
+    float cosTheta = std::sqrt(sample.x());  // cos(θ) = sqrt(ξ_1)
+    float sinTheta = std::sqrt(1.0f - cosTheta * cosTheta);  // sin(θ) = sqrt(1 - cos^2(θ))
+    float phi = 2.0f * M_PI * sample.y();
+
+    return Vector3f(sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta);
 }
 
+
+/*
+Calcula la función de densidad de probabilidad (PDF) para un punto v en la superficie de una hemisferio unitaria, pero esta vez bajo una distribución cosenoidal.
+*/
 float Warp::squareToCosineHemispherePdf(const Vector3f &v) {
-    throw NoriException("Warp::squareToCosineHemispherePdf() is not yet implemented!");
+    if (v.z() < 0.0f || std::abs(v.norm() - 1.0f) > 1e-6) {
+        return 0.0f;  
+    }
+    
+    return v.z() / M_PI;    
 }
 
+/*
+mapea puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a una distribución de 
+Beckmann, que es comúnmente utilizada en gráficos por computadora para describir la distribución de normales en superficies rugosas o microfacetadas
+*/
 Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {
-    throw NoriException("Warp::squareToBeckmann() is not yet implemented!");
+    float phi = 2.0f * M_PI * sample.y();
+    float theta = std::atan(alpha * std::sqrt(-std::log(1.0f - sample.x())));
+
+    return Vector3f(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
 }
 
+/*
+calcula la función de densidad de probabilidad (PDF) para un vector normal m (de una microfaceta) generado según la distribución de Beckmann. 
+*/
 float Warp::squareToBeckmannPdf(const Vector3f &m, float alpha) {
-    throw NoriException("Warp::squareToBeckmannPdf() is not yet implemented!");
+    if (m.z() <= 0.0f) {
+        return 0.0f;  // El vector está fuera de la hemisferio superior
+    }
+
+    // Calcular tan^2(θ) = (1 - cos^2(θ)) / cos^2(θ)
+    float cosTheta = m.z();
+    float tanTheta2 = (1.0f - cosTheta * cosTheta) / (cosTheta * cosTheta);
+
+    // Calcular la PDF de Beckmann
+    float exponent = -tanTheta2 / (alpha * alpha);
+    float beckmannPdf = std::exp(exponent) / (M_PI * alpha * alpha * std::pow(cosTheta, 3));
+
+    return beckmannPdf;
 }
 
 NORI_NAMESPACE_END
