@@ -6,6 +6,9 @@
 
 NORI_NAMESPACE_BEGIN
 
+/**
+ * Calcula la iluminación directa mediante la evaluación de la radiancia de luces, tomando en cuenta la visibilidad (rayo de sombra).
+ */
 class DirectWhittedIntegrator:public Integrator {
 public:
     DirectWhittedIntegrator(const PropertyList& props) {
@@ -51,7 +54,10 @@ public:
             BSDFQueryRecord bsdfRecord(its.toLocal(-ray.d), its.toLocal(emitterRecord.wi), its.uv, ESolidAngle);
             // For each light, we accomulate the incident light times the
             // foreshortening times the BSDF term (i.e. the render equation).
-            Lo += Le * its.shFrame.n.dot(emitterRecord.wi) * its.mesh->getBSDF()->eval(bsdfRecord);
+            float emitterPdf = em->pdf(emitterRecord); //Obtiene la PDF de la dirección de la luz muestreada desde el emisor,
+            if (emitterPdf > 0.0f) {
+                Lo += (Le * its.shFrame.n.dot(emitterRecord.wi) * its.mesh->getBSDF()->eval(bsdfRecord)) / emitterPdf; //normalizamos la radiancia por la probabilidad de haber seleccionado la muestra
+            }
         }
     return Lo;
     }

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <nori/accel.h>
+#include <nori/dpdf.h>
 
 NORI_NAMESPACE_BEGIN
 
@@ -145,6 +146,8 @@ private:
     Sampler *m_sampler = nullptr;
     Camera *m_camera = nullptr;
     Accel *m_accel = nullptr;
+
+    DiscretePDF m_emitterPDF;
 };
 
 NORI_NAMESPACE_END

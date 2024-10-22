@@ -79,7 +79,29 @@ public:
 	}
 
 	virtual Color3f sample(EmitterQueryRecord& lRec, const Point2f& sample, float optional_u) const {
-		throw NoriException("EnvironmentEmitter::sample() is not yet implemented!");
+		// θ: ángulo polar [0, pi], φ: ángulo azimutal [0, 2*pi]
+		// convertir a coordenadas esféricas
+		float theta = std::acos(1.0f - 2.0f * sample.x()); 
+    	float phi = 2.0f * M_PI * sample.y();
+
+		// convertir (θ, φ) en una dirección en el entorno (wi)
+		lRec.wi = Vector3f(
+        std::sin(theta) * std::cos(phi),  // x
+        std::cos(theta),                  // y
+        std::sin(theta) * std::sin(phi)   // z
+    	);
+		//distancia a la fuente de luz es "infinita" porque es un mapa de entorno
+		lRec.dist = std::numeric_limits<float>::infinity();
+
+		// Convertir las coordenadas esféricas en coordenadas de textura (u, v)
+		float u = phi / (2.0f * M_PI);   // Normalizar phi a [0, 1]
+    	float v = theta / M_PI;
+
+		if (m_environment) {
+			return m_environment->eval(Point2f(u, v)) * m_radiance;
+		}
+
+		 return m_radiance;
 	}
 
 	// Returns probability with respect to solid angle given by all the information inside the emitterqueryrecord.

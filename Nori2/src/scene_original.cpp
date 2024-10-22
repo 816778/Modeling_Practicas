@@ -41,49 +41,20 @@ Scene::~Scene() {
 }
 
 void Scene::activate() {
-    m_emitterPDF = DiscretePDF(m_emitters.size());
 
-   if (!m_sampler) {
-        /* Crear un sampler por defecto si no está definido */
-        m_sampler = static_cast<Sampler*>(
-            NoriObjectFactory::createInstance("independent", PropertyList()));
-    }
-
-    // Recorrer cada emisor y calcular su radiancia estimada
-    for (size_t i = 0; i < m_emitters.size(); ++i) {
-        const Emitter* emitter = m_emitters[i];
-
-        // Aproximar la radiancia total del emisor con algunas muestras
-        float estimatedRadiance = 0.0f;
-        int numSamples = 10;  // Número de muestras para estimar la radiancia
-
-        for (int j = 0; j < numSamples; ++j) {
-            // Muestrear una dirección aleatoria usando el sampler de la escena
-            EmitterQueryRecord lRec(Point3f(0, 0, 0));  // Ajustar el punto de referencia según sea necesario
-            Point2f sample = m_sampler->next2D();  // Usar el sampler de la escena
-
-            // Usar el método sample para obtener la radiancia
-            Color3f radiance = emitter->sample(lRec, sample, 0.0f);
-
-            // Sumar la radiancia (puedes hacer un promedio simple)
-            estimatedRadiance += radiance.maxCoeff();  // Usa el máximo coeficiente para una estimación aproximada
-        }
-
-        estimatedRadiance /= numSamples;
-
-        // Añadir la radiancia estimada al DiscretePDF
-        m_emitterPDF.append(estimatedRadiance);
-    }
-
-
-    m_emitterPDF.normalize();
+    // Check if there's emitters attached to meshes, and
+    // add them to the scene. 
+    for(unsigned int i=0; i<m_meshes.size(); ++i )
+        if (m_meshes[i]->isEmitter())
+            m_emitters.push_back(m_meshes[i]->getEmitter());
 
     m_accel->build();
+
     if (!m_integrator)
         throw NoriException("No integrator was specified!");
     if (!m_camera)
         throw NoriException("No camera was specified!");
-
+    
     if (!m_sampler) {
         /* Create a default (independent) sampler */
         m_sampler = static_cast<Sampler*>(
@@ -97,15 +68,14 @@ void Scene::activate() {
 
 /// Sample emitter
 const Emitter * Scene::sampleEmitter(float rnd, float &pdf) const {
-	size_t index = m_emitterPDF.sample(rnd, pdf);
-
-    return m_emitters[index];
+	auto const & n = m_emitters.size();
+	size_t index = std::min(static_cast<size_t>(std::floor(n*rnd)), n - 1);
+	pdf = 1. / float(n);
+	return m_emitters[index];
 }
 
 float Scene::pdfEmitter(const Emitter *em) const {
-    size_t index = std::distance(m_emitters.begin(), std::find(m_emitters.begin(), m_emitters.end(), em));
-    
-    return m_emitterPDF[index];
+    return 1. / float(m_emitters.size());
 }
 
 

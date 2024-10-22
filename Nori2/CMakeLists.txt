@@ -76,6 +76,7 @@ add_executable(nori
   src/common.cpp
   src/depth.cpp
   src/dielectric.cpp
+  src/direct_ems.cpp
   src/direct_whitted.cpp
   src/diffuse.cpp
   src/environment.cpp  

@@ -190,7 +190,7 @@ float Warp::squareToCosineHemispherePdf(const Vector3f &v) {
 }
 
 /*
-mapea puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a una distribución de 
+FIXME: mapea puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a una distribución de 
 Beckmann, que es comúnmente utilizada en gráficos por computadora para describir la distribución de normales en superficies rugosas o microfacetadas
 */
 Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {
