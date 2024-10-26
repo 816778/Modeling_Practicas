@@ -98,7 +98,6 @@ void Scene::activate() {
 /// Sample emitter
 const Emitter * Scene::sampleEmitter(float rnd, float &pdf) const {
 	size_t index = m_emitterPDF.sample(rnd, pdf);
-
     return m_emitters[index];
 }
 
@@ -115,6 +114,10 @@ void Scene::addChild(NoriObject *obj, const std::string& name) {
                 Mesh *mesh = static_cast<Mesh *>(obj);
                 m_accel->addMesh(mesh);
                 m_meshes.push_back(mesh);
+                if (mesh->isEmitter()) {
+                    m_emitters.push_back(mesh->getEmitter()); // Añade el emisor de la malla a la lista global de emisores
+                    std::cout << "Emitter ha sido añadido\n";
+                }
             }
             break;
         
@@ -128,6 +131,7 @@ void Scene::addChild(NoriObject *obj, const std::string& name) {
 				}
 				
                 m_emitters.push_back(emitter);
+                cout << "Emitter ha sido añadido\n";
 			}
             break;
 

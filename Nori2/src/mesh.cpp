@@ -45,6 +45,13 @@ void Mesh::activate() {
     }
 
     m_pdf.reserve(m_F.cols());
+
+    for (uint32_t i = 0; i < m_F.cols(); ++i) { // num triángulos en la malla
+        float area = surfaceArea(i);
+        m_pdf.append(area);
+    }
+
+    m_pdf.normalize();
 }
 
 float Mesh::surfaceArea(n_UINT index) const {
@@ -114,13 +121,93 @@ Point3f Mesh::getCentroid(n_UINT index) const {
  */
 void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2f &uv) const
 {
-	throw NoriException("Mesh::samplePosition() is not yet implemented!");	
+    float pdfTriangle;
+    float sampleValue = sample.x();
+    size_t triangleIdx = m_pdf.sampleReuse(sampleValue, pdfTriangle); //índice del triángulo de la malla seleccionado
+
+    //Vértices del triángulo
+	n_UINT i0 = m_F(0, triangleIdx), i1 = m_F(1, triangleIdx), i2 = m_F(2, triangleIdx);
+    const Point3f &v0 = m_V.col(i0);
+    const Point3f &v1 = m_V.col(i1);
+    const Point3f &v2 = m_V.col(i2);
+
+    // elegir un punto aleatorio dentro del triángulo
+    Point2f barycentric = Warp::squareToUniformTriangle(sample);
+
+    // Transforma usando las coordenadas baricéntricas
+    p = (1.0f - barycentric.x() - barycentric.y()) * v0 + barycentric.x() * v1 + barycentric.y() * v2;
+    // 5. Interpola la normal 'n' (si las normales están disponibles)
+    if (m_N.size() > 0) {
+        const Normal3f &n0 = m_N.col(i0);
+        const Normal3f &n1 = m_N.col(i1);
+        const Normal3f &n2 = m_N.col(i2);
+        n = (1.0f - barycentric.x() - barycentric.y()) * n0 + barycentric.x() * n1 + barycentric.y() * n2;
+    } else {
+        // Si no hay normales, usa la normal geométrica del triángulo
+        n = (v1 - v0).cross(v2 - v0).normalized();
+    }
+    n.normalize();
+
+    // 6. Interpola las coordenadas UV (si están presentes)
+    if (m_UV.size() > 0) {
+        const Point2f &uv0 = m_UV.col(i0);
+        const Point2f &uv1 = m_UV.col(i1);
+        const Point2f &uv2 = m_UV.col(i2);
+        uv = (1.0f - barycentric.x() - barycentric.y()) * uv0 + barycentric.x() * uv1 + barycentric.y() * uv2;
+    } else {
+        // Si no hay UVs, devuelve (0, 0)
+        uv = Point2f(0.0f, 0.0f);
+    }
 }
 
 /// Return the surface area of the given triangle
 float Mesh::pdf(const Point3f &p) const
 {
-	throw NoriException("Mesh::pdf() is not yet implemented!");	
+	for (uint32_t i = 0; i < m_F.cols(); ++i) {
+        // bounding box del triángulo
+        BoundingBox3f bbox = getBoundingBox(i);
+
+
+        if (bbox.contains(p)) {
+            float areaTotal = m_pdf.getNormalization();
+                
+                // cout << this->toString();
+                // La PDF es el área del triángulo dividido por el área total
+            return 1.0f / areaTotal;
+
+            // Si el punto está dentro de la bounding box del triángulo, verificarlo:
+            n_UINT i0 = m_F(0, i), i1 = m_F(1, i), i2 = m_F(2, i);
+            const Point3f &v0 = m_V.col(i0);
+            const Point3f &v1 = m_V.col(i1);
+            const Point3f &v2 = m_V.col(i2);
+
+            Vector3f edge0 = v1 - v0;
+            Vector3f edge1 = v2 - v0;
+            Vector3f vp = p - v0;
+
+            float d00 = edge0.dot(edge0);
+            float d01 = edge0.dot(edge1);
+            float d11 = edge1.dot(edge1);
+            float d20 = vp.dot(edge0);
+            float d21 = vp.dot(edge1);
+            float denom = d00 * d11 - d01 * d01;
+
+            float v = (d11 * d20 - d01 * d21) / denom;
+            float w = (d00 * d21 - d01 * d20) / denom;
+            float u = 1.0f - v - w;
+
+            if (u >= 0 && v >= 0 && w >= 0) {
+                // float areaTriangle = surfaceArea(i);
+
+                // Obtener el área total de la malla desde el DiscretePDF
+                float areaTotal = m_pdf.getNormalization();
+                
+                // cout << this->toString();
+                // La PDF es el área del triángulo dividido por el área total
+                return 1.0f / areaTotal;
+            }
+        }
+    }
 	
 	return 0.;
 }
@@ -158,7 +245,7 @@ std::string Mesh::toString() const {
         "  triangleCount = %i,\n"
         "  bsdf = %s,\n"
         "  emitter = %s\n"
-        "]",
+        "]\n",
         m_name,
         m_V.cols(),
         m_F.cols(),

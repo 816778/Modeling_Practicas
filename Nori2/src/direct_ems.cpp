@@ -20,6 +20,7 @@ public:
     /// Compute the radiance along a ray
     Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
         Color3f Lo(0.0f);
+        int N = 1; // Número de muestras, puedes ajustar este valor
 
         // Find the surface that is visible in the requested direction
         Intersection its;
@@ -30,29 +31,40 @@ public:
         // Get the BSDF at the hit point
         const BSDF *bsdf = its.mesh->getBSDF();
 
-        // Muestrear un emisor aleatorio y obtener su PDF
-        float pdfEmitter;
-        const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
+        // Sumatoria sobre N muestras
+        for (int k = 0; k < N; ++k) {
+            // Muestrear un emisor aleatorio y obtener su PDF
+            float pdfEmitter;
+            const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
 
-        if (pdfEmitter == 0.0f || !emitter) {
-            return Lo;  // Si no hay PDF o el emisor es inválido, retornar 0
-        }
+            if (std::abs(pdfEmitter) < Epsilon || !emitter) {
+                continue;  // Si no hay PDF o el emisor es inválido, saltar esta muestra
+            }
 
-        EmitterQueryRecord lRec(its.p);
-        Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.); 
+            EmitterQueryRecord lRec(its.p);
+            // cout << lRec.toString();
+            Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.);
 
-        Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist - Epsilon);
-        if (!scene->rayIntersect(shadowRay)) {
-            BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
-            Color3f bsdfVal = bsdf->eval(bsdfRec);
-            
-            float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
-            float pdfLight = emitter->pdf(lRec);
-
-            if (pdfLight > 0.0f) {
-                Lo += (Le * bsdfVal * cosTheta) / (pdfLight * pdfEmitter);
+            // Rayo de sombra
+            Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist);
+            if (!scene->rayIntersect(shadowRay)) {
+                // Evaluar la BSDF
+                BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
+                Color3f bsdfVal = bsdf->eval(bsdfRec);
+                
+                // Factor coseno
+                float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
+                float pdfLight = emitter->pdf(lRec);
+                
+                // Si el pdf es válido, acumular el valor en Lo
+                if (pdfLight > 0.0f) {
+                    Lo += (Le * bsdfVal * cosTheta) / (pdfLight * pdfEmitter);
+                }
             }
         }
+
+        // Promediar las muestras
+        Lo /= N;
 
         return Lo;
     }

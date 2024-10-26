@@ -167,7 +167,7 @@ float Warp::squareToUniformHemispherePdf(const Vector3f &v) {
 }
 
 /*
-FIXME: A diferencia de la distribución uniforme, en una distribución cosenoidal, los puntos están más concentrados alrededor del eje z
+A diferencia de la distribución uniforme, en una distribución cosenoidal, los puntos están más concentrados alrededor del eje z
 */
 Vector3f Warp::squareToCosineHemisphere(const Point2f &sample) {
     float cosTheta = std::sqrt(sample.x());  // cos(θ) = sqrt(ξ_1)
@@ -190,7 +190,7 @@ float Warp::squareToCosineHemispherePdf(const Vector3f &v) {
 }
 
 /*
-FIXME: mapea puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a una distribución de 
+mapea puntos uniformemente distribuidos en un cuadrado unitario [0,1]×[0,1] a una distribución de 
 Beckmann, que es comúnmente utilizada en gráficos por computadora para describir la distribución de normales en superficies rugosas o microfacetadas
 */
 Vector3f Warp::squareToBeckmann(const Point2f &sample, float alpha) {

@@ -108,7 +108,7 @@ public:
 	// Assumes all information about the intersection point is already provided inside.
 	// WARNING: Use with care. Malformed EmitterQueryRecords can result in undefined behavior. Plus no visibility is considered.
 	virtual float pdf(const EmitterQueryRecord& lRec) const {
-		throw NoriException("EnvironmentEmitter::pdf() is not yet implemented!");
+		return 1.0f / (4.0f * M_PI);
 	}
 
 

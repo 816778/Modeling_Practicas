@@ -78,7 +78,18 @@ struct EmitterQueryRecord {
 	}
 
 	/// Return a human-readable string summary
-	std::string toString() const;
+	std::string toString() const{
+        std::ostringstream oss;
+        oss << "EmitterQueryRecord[" << std::endl
+            << "  ref = " << ref.toString() << "," << std::endl
+            << "  p = " << p.toString() << "," << std::endl
+            << "  n = " << n.toString() << "," << std::endl
+            << "  pdf = " << pdf << "," << std::endl
+            << "  wi = " << wi.toString() << "," << std::endl
+            << "  dist = " << dist << std::endl
+            << "]\n";
+        return oss.str();
+    }
 };
 
 
