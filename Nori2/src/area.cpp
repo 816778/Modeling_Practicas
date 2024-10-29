@@ -55,14 +55,13 @@ public:
 		// Hence the ray was already traced for us - i.e a visibility test was already performed.
 		// Hence just check if the associated normal in emitter query record and incoming direction are not backfacing
 		float cosTheta = lRec.n.dot(lRec.wi);  // lRec.n es la normal de la superficie
+		// std::cout << lRec.toString() << endl;
+		// std::cout << cosTheta << endl;
 		if (cosTheta <= 0) {
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado atrás de la luz
 		}
-		if (m_radiance) {
-			return m_radiance->eval(lRec.uv) * m_scale;  // Escalamos la radiancia si es necesario
-		}
-		// Si no hay textura, devolvemos la radiancia constante
-    	return m_radiance->eval(lRec.uv) * m_scale;
+
+		return m_radiance->eval(lRec.uv) * m_scale;  // Escalamos la radiancia si es necesario
 	}
 
 	virtual Color3f sample(EmitterQueryRecord & lRec, const Point2f & sample, float optional_u) const {
@@ -78,12 +77,15 @@ public:
 		lRec.p = p;              // Punto en el emisor
 		lRec.n = n;              // Normal en el emisor
 		lRec.uv = uv;            // Coordenadas UV
-		lRec.wi = (lRec.ref - lRec.p).normalized();  // Dirección hacia el punto de referencia
-		lRec.dist = (lRec.ref - lRec.p).norm();      // Distancia entre ref y p
 		
+		lRec.wi = (lRec.ref - p).normalized();  // Dirección hacia el punto de referencia
+		lRec.dist = (lRec.ref - p).norm();      // Distancia entre ref y p
+		
+		cout << lRec.toString();
 		// está emitiendo hacia la dirección correcta
 		float cosTheta = lRec.n.dot(lRec.wi);
 		if (cosTheta <= 0) {
+			cout << cosTheta;
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado trasero del emisor
 		}
 
@@ -109,13 +111,6 @@ public:
 		float pdfSurface = m_mesh->pdf(lRec.p);
 		float dist2 = (lRec.ref - lRec.p).squaredNorm();
 		float cosTheta = lRec.n.dot(lRec.wi);
-		// float cosTheta = std::fabs(lRec.n.dot(-lRec.wi));
-		/*std::cout << "[DEBUG] pdfSurface: " << pdfSurface << std::endl;
-		std::cout << "[DEBUG] dist2: " << dist2 << std::endl;
-		std::cout << "[DEBUG] cosTheta: " << cosTheta << std::endl;
-		std::cout << "[DEBUG] lRec.n: " << lRec.n.transpose() << std::endl;
-    	std::cout << "[DEBUG] -lRec.wi: " << (-lRec.wi).transpose() << std::endl;
-		*/
 		 if (cosTheta <= 0.0f) {
 			return 0.0f;  // Esto significa que la luz no es visible desde el punto de vista de la cámara
 		}

@@ -42,24 +42,13 @@
 		</bsdf>
 	</mesh>
 
+	
 	<mesh type="obj">
-		<string name="filename" value="meshes/sphere1.obj"/>
+		<string name="filename" value="meshes/light.obj"/>
 
-		<bsdf type="diffuse">
-			<color name="albedo" value="0.4 0.4 0.4"/>
-		</bsdf>
+		<emitter type="area">
+			<color name="radiance" value="100 100 100"/>
+		</emitter>
 	</mesh>
 
-	<mesh type="obj">
-		<string name="filename" value="meshes/sphere2.obj"/>
-
-		<bsdf type="diffuse">
-			<color name="albedo" value="0.4 0.4 0.4"/>
-		</bsdf>
-	</mesh>
-
-	<emitter type="pointlight">
-		<color name="radiance" value="1000, 1000, 1000"/>
-		<point name="position" value="0, 0, 10"/>
-	</emitter>
 </scene>

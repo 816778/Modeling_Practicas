@@ -149,11 +149,12 @@ transforma un punto uniformemente distribuido en un cuadrado unitario [0,1]×[0,
 uniformemente distribuido en la superficie de una hemisferio unitaria en 3D.
 */
 Vector3f Warp::squareToUniformHemisphere(const Point2f &sample) {
-    float z = 1.0f - 2.0f * sample.x(); // Map to [-1, 1]
-    float r = std::sqrt(std::max(0.0f, 1.0f - z * z)); // Radius of the circle at z
-    float phi = M_PI * sample.y();
-    return Vector3f(r * std::cos(phi), r * std::sin(phi), z);   
+    float z = 1.0f - sample.x(); // Muestreo uniforme, z en [0, 1]
+    float r = std::sqrt(std::max(0.0f, 1.0f - z * z)); // Radio del círculo en z
+    float phi = 2.0f * M_PI * sample.y(); // Ángulo azimutal en [0, 2π]
+    return Vector3f(r * std::cos(phi), r * std::sin(phi), z);
 }
+
 
 /*
 FIXME: calcular la función de densidad de probabilidad (PDF) para un punto v que se encuentra en la superficie de una hemisferio unitaria
@@ -162,8 +163,7 @@ float Warp::squareToUniformHemispherePdf(const Vector3f &v) {
     if (v.z() < 0.0f || v.norm() != 1.0f) {
         return 0.0f;  
     }
-    
-    return 1.0f / (2.0f * M_PI);
+    return 1.0f / (2.0f * M_PI); // PDF constante para muestreo uniforme
 }
 
 /*

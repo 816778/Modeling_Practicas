@@ -3,7 +3,7 @@
 <scene>
 	<!-- Independent sample generator, 128 samples per pixel -->
 	<sampler type="independent">
-		<integer name="sampleCount" value="64"/>
+		<integer name="sampleCount" value="16"/>
 	</sampler>
 
 	<!-- Use the path tracer without multiple importance sampling -->
@@ -29,9 +29,8 @@
 	<mesh type="obj">
 		<string name="filename" value="meshes/light.obj"/>
 
-		<emitter type="pointlight">
-			<color name="radiance" value="10000, 10000, 10000"/>
-			<point name="position" value="0, 50, 0"/>
+		<emitter type="area">
+			<color name="radiance" value="5,5,8"/>
 		</emitter>
 
 		<bsdf type="diffuse">

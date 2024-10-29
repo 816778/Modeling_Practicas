@@ -131,8 +131,13 @@ void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2
     const Point3f &v1 = m_V.col(i1);
     const Point3f &v2 = m_V.col(i2);
 
+    /*std::cout << "Vértice v0: " + v0.toString() + "\n";
+    std::cout << "Vértice v1: " + v1.toString() + "\n";
+    std::cout << "Vértice v2: " + v2.toString() + "\n";*/
+
+
     // elegir un punto aleatorio dentro del triángulo
-    Point2f barycentric = Warp::squareToUniformTriangle(sample);
+    Point2f barycentric = Warp::squareToUniformTriangle(Point2f(sampleValue, sample.y()));
 
     // Transforma usando las coordenadas baricéntricas
     p = (1.0f - barycentric.x() - barycentric.y()) * v0 + barycentric.x() * v1 + barycentric.y() * v2;
@@ -142,11 +147,16 @@ void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2
         const Normal3f &n1 = m_N.col(i1);
         const Normal3f &n2 = m_N.col(i2);
         n = (1.0f - barycentric.x() - barycentric.y()) * n0 + barycentric.x() * n1 + barycentric.y() * n2;
+        //std::cout << "Normal n0: " << n0.toString() << "\n";
+        //std::cout << "Normal n1: " << n1.toString() << "\n";
+        //std::cout << "Normal n2: " << n2.toString() << "\n";
     } else {
+        // cout << "NO HAY NORMALES\n";
         // Si no hay normales, usa la normal geométrica del triángulo
         n = (v1 - v0).cross(v2 - v0).normalized();
     }
-    n.normalize();
+    n = (v1 - v0).cross(v2 - v0).normalized();
+    // n.normalize();
 
     // 6. Interpola las coordenadas UV (si están presentes)
     if (m_UV.size() > 0) {
@@ -158,6 +168,11 @@ void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2
         // Si no hay UVs, devuelve (0, 0)
         uv = Point2f(0.0f, 0.0f);
     }
+    /*
+    std::cout << "Sampled position: " << p.toString() << "\n";
+    std::cout << "Normal at sampled position: " << n.toString() << "\n";
+    std::cout << "UV coordinates: " << uv.toString() << "\n";
+    */
 }
 
 /// Return the surface area of the given triangle
@@ -168,12 +183,7 @@ float Mesh::pdf(const Point3f &p) const
         BoundingBox3f bbox = getBoundingBox(i);
 
 
-        if (bbox.contains(p)) {
-            float areaTotal = m_pdf.getNormalization();
-                
-                // cout << this->toString();
-                // La PDF es el área del triángulo dividido por el área total
-            return 1.0f / areaTotal;
+        if (bbox.contains(p)) {                
 
             // Si el punto está dentro de la bounding box del triángulo, verificarlo:
             n_UINT i0 = m_F(0, i), i1 = m_F(1, i), i2 = m_F(2, i);
@@ -195,19 +205,22 @@ float Mesh::pdf(const Point3f &p) const
             float v = (d11 * d20 - d01 * d21) / denom;
             float w = (d00 * d21 - d01 * d20) / denom;
             float u = 1.0f - v - w;
-
+            // cout << "Bounding box contiene triangulo " << u << " - " << w << " - " << u << endl;
             if (u >= 0 && v >= 0 && w >= 0) {
                 // float areaTriangle = surfaceArea(i);
-
-                // Obtener el área total de la malla desde el DiscretePDF
+                float areaTriangle = 0.5f * (v1 - v0).cross(v2 - v0).norm();
                 float areaTotal = m_pdf.getNormalization();
+                // Obtener el área total de la malla desde el DiscretePDF
                 
                 // cout << this->toString();
                 // La PDF es el área del triángulo dividido por el área total
-                return 1.0f / areaTotal;
+                // cout << areaTriangle / areaTotal << endl;
+                return areaTriangle / areaTotal;
             }
         }
     }
+
+    // cout << "0\n";
 	
 	return 0.;
 }
