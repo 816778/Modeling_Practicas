@@ -53,7 +53,6 @@ public:
         lRec.ref = its.p;
         Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.);
         if (lRec.pdf <= 0.0f) {
-            // cout << "DEVUELVO 0\n";
             return Lo;  // Si la PDF es inválida, no añadimos contribución de esta muestra
         }
 

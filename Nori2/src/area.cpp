@@ -30,6 +30,7 @@ class AreaEmitter : public Emitter {
 public:
 	AreaEmitter(const PropertyList &props) {
 		m_type = EmitterType::EMITTER_AREA;
+		m_radiance_c = props.getColor("radiance");
 		m_radiance = new ConstantSpectrumTexture(props.getColor("radiance", Color3f(1.f)));
 		m_scale = props.getFloat("scale", 1.);
 	}
@@ -81,17 +82,15 @@ public:
 		lRec.wi = (lRec.ref - p).normalized();  // Dirección hacia el punto de referencia
 		lRec.dist = (lRec.ref - p).norm();      // Distancia entre ref y p
 		
-		cout << lRec.toString();
+		//cout << lRec.toString();
 		// está emitiendo hacia la dirección correcta
 		float cosTheta = lRec.n.dot(lRec.wi);
 		if (cosTheta <= 0) {
-			cout << cosTheta;
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado trasero del emisor
 		}
 
 		// Evalúa la radiancia en la dirección de la muestra
 		Color3f radiance = m_radiance->eval(lRec.uv) * m_scale;
-
 		// Calcula la PDF en el ángulo sólido
 		float pdfPos = m_mesh->pdf(lRec.p);  // PDF de la posición
 		lRec.pdf = pdfPos * (lRec.dist * lRec.dist) / std::abs(cosTheta);  // Convertir a PDF en ángulo sólido

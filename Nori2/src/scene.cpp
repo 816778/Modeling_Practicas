@@ -41,39 +41,30 @@ Scene::~Scene() {
 }
 
 void Scene::activate() {
-    m_emitterPDF = DiscretePDF(m_emitters.size());
 
    if (!m_sampler) {
         /* Crear un sampler por defecto si no está definido */
         m_sampler = static_cast<Sampler*>(
             NoriObjectFactory::createInstance("independent", PropertyList()));
     }
+     
+    m_emitterPDF.clear();
 
     // Recorrer cada emisor y calcular su radiancia estimada
-    for (size_t i = 0; i < m_emitters.size(); ++i) {
-        const Emitter* emitter = m_emitters[i];
+    for (unsigned int i = 0; i < m_meshes.size(); ++i) {
+        if (m_meshes[i]->isEmitter()) { // Check if the mesh has an emitter
+            // Associate the mesh with its emitter for proper reference
+            m_meshes[i]->getEmitter()->setMesh(m_meshes[i]);
 
-        // Aproximar la radiancia total del emisor con algunas muestras
-        float estimatedRadiance = 0.0f;
-        int numSamples = 10;  // Número de muestras para estimar la radiancia
+            // Add the emitter to the scene's emitter list
+            m_emitters.push_back(m_meshes[i]->getEmitter());
 
-        for (int j = 0; j < numSamples; ++j) {
-            // Muestrear una dirección aleatoria usando el sampler de la escena
-            EmitterQueryRecord lRec(Point3f(0, 0, 0));  // Ajustar el punto de referencia según sea necesario
-            Point2f sample = m_sampler->next2D();  // Usar el sampler de la escena
-
-            // Usar el método sample para obtener la radiancia
-            Color3f radiance = emitter->sample(lRec, sample, 0.0f);
-
-            // Sumar la radiancia (puedes hacer un promedio simple)
-            estimatedRadiance += radiance.maxCoeff();  // Usa el máximo coeficiente para una estimación aproximada
+            // Append the maximum radiance coefficient to the PDF for sampling
+            m_emitterPDF.append(m_meshes[i]->getEmitter()->getRadiance().maxCoeff());
         }
-
-        estimatedRadiance /= numSamples;
-
-        // Añadir la radiancia estimada al DiscretePDF
-        m_emitterPDF.append(estimatedRadiance);
     }
+
+
 
 
     m_emitterPDF.normalize();

@@ -43,15 +43,18 @@ void Mesh::activate() {
         m_bsdf = static_cast<BSDF *>(
             NoriObjectFactory::createInstance("diffuse", PropertyList()));
     }
-
+    
     m_pdf.reserve(m_F.cols());
-
+    float meshArea = 0.0f;
+    
     for (uint32_t i = 0; i < m_F.cols(); ++i) { // num triángulos en la malla
         float area = surfaceArea(i);
+        //cout << "Area:" <<  area << endl;
         m_pdf.append(area);
     }
 
     m_pdf.normalize();
+    //cout << "M_PDF:" +  m_pdf.toString();
 }
 
 float Mesh::surfaceArea(n_UINT index) const {
@@ -124,55 +127,37 @@ void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2
     float pdfTriangle;
     float sampleValue = sample.x();
     size_t triangleIdx = m_pdf.sampleReuse(sampleValue, pdfTriangle); //índice del triángulo de la malla seleccionado
-
-    //Vértices del triángulo
-	n_UINT i0 = m_F(0, triangleIdx), i1 = m_F(1, triangleIdx), i2 = m_F(2, triangleIdx);
-    const Point3f &v0 = m_V.col(i0);
-    const Point3f &v1 = m_V.col(i1);
-    const Point3f &v2 = m_V.col(i2);
-
-    /*std::cout << "Vértice v0: " + v0.toString() + "\n";
-    std::cout << "Vértice v1: " + v1.toString() + "\n";
-    std::cout << "Vértice v2: " + v2.toString() + "\n";*/
-
-
-    // elegir un punto aleatorio dentro del triángulo
     Point2f barycentric = Warp::squareToUniformTriangle(Point2f(sampleValue, sample.y()));
 
-    // Transforma usando las coordenadas baricéntricas
-    p = (1.0f - barycentric.x() - barycentric.y()) * v0 + barycentric.x() * v1 + barycentric.y() * v2;
-    // 5. Interpola la normal 'n' (si las normales están disponibles)
-    if (m_N.size() > 0) {
-        const Normal3f &n0 = m_N.col(i0);
-        const Normal3f &n1 = m_N.col(i1);
-        const Normal3f &n2 = m_N.col(i2);
-        n = (1.0f - barycentric.x() - barycentric.y()) * n0 + barycentric.x() * n1 + barycentric.y() * n2;
-        //std::cout << "Normal n0: " << n0.toString() << "\n";
-        //std::cout << "Normal n1: " << n1.toString() << "\n";
-        //std::cout << "Normal n2: " << n2.toString() << "\n";
-    } else {
-        // cout << "NO HAY NORMALES\n";
-        // Si no hay normales, usa la normal geométrica del triángulo
-        n = (v1 - v0).cross(v2 - v0).normalized();
-    }
-    n = (v1 - v0).cross(v2 - v0).normalized();
-    // n.normalize();
 
-    // 6. Interpola las coordenadas UV (si están presentes)
-    if (m_UV.size() > 0) {
-        const Point2f &uv0 = m_UV.col(i0);
-        const Point2f &uv1 = m_UV.col(i1);
-        const Point2f &uv2 = m_UV.col(i2);
-        uv = (1.0f - barycentric.x() - barycentric.y()) * uv0 + barycentric.x() * uv1 + barycentric.y() * uv2;
+    const MatrixXu &F = getIndices();
+    n_UINT idx0 = F(0, triangleIdx), idx1 = F(1, triangleIdx), idx2 = F(2, triangleIdx);
+	const MatrixXf &V = getVertexPositions();
+    const MatrixXf &N = getVertexNormals();
+    const MatrixXf &UV = getVertexTexCoords();
+
+    Point3f p0 = V.col(idx0), p1 = V.col(idx1), p2 = V.col(idx2); //punto dentro del triángulo
+    // Transforma usando las coordenadas baricéntricas
+    float bary0 = 1 - barycentric.x() - barycentric.y();
+    float bary1 = barycentric.x();
+    float bary2 = barycentric.y();
+    // Compute the sampled position using barycentric coordinates
+    p = bary0 * p0 + bary1 * p1 + bary2 * p2;
+
+    if (N.size() > 0) {
+        Normal3f n0 = N.col(idx0), n1 = N.col(idx1), n2 = N.col(idx2);
+        n = (bary0 * n0 + bary1 * n1 + bary2 * n2).normalized();
     } else {
-        // Si no hay UVs, devuelve (0, 0)
-        uv = Point2f(0.0f, 0.0f);
+        n = (p1 - p0).cross(p2 - p0).normalized();
     }
-    /*
-    std::cout << "Sampled position: " << p.toString() << "\n";
-    std::cout << "Normal at sampled position: " << n.toString() << "\n";
-    std::cout << "UV coordinates: " << uv.toString() << "\n";
-    */
+    n.normalize();
+
+    if (UV.size() > 0) {
+        Point2f uv0 = UV.col(idx0), uv1 = UV.col(idx1), uv2 = UV.col(idx2);
+        uv = bary0 * uv0 + bary1 * uv1 + bary2 * uv2;
+    } else {
+        uv = Point2f(0.0f, 0.0f);  // Default value if no UV coordinates are present
+    }
 }
 
 /// Return the surface area of the given triangle
