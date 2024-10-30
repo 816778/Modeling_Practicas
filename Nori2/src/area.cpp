@@ -84,7 +84,7 @@ public:
 		
 		//cout << lRec.toString();
 		// está emitiendo hacia la dirección correcta
-		float cosTheta = lRec.n.dot(lRec.wi);
+		float cosTheta = lRec.n.dot(-lRec.wi);
 		if (cosTheta <= 0) {
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado trasero del emisor
 		}
@@ -96,6 +96,7 @@ public:
 		lRec.pdf = pdfPos * (lRec.dist * lRec.dist) / std::abs(cosTheta);  // Convertir a PDF en ángulo sólido
 		// std::cout << radiance.toString() << endl;
 		// Devuelve la radiancia emitida
+		// cout << "RADIANZA: \n" << radiance;
 		return radiance;
 	}
 

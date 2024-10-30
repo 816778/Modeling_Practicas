@@ -41,6 +41,7 @@ public:
 			cout << "Loaded " << m_environment_name << " - SIZE [" << m_environment->rows() << ", " << m_environment->cols() << "]" << endl;
 		}
 		m_radiance = props.getColor("radiance", Color3f(1.));
+		m_radiance_c = props.getColor("radiance", Color3f(1.));
 	}
 	~EnvironmentEmitter()
 	{

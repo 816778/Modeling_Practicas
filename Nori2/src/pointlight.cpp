@@ -7,6 +7,7 @@ public :
         m_type = EmitterType::EMITTER_POINT;
         m_position = props.getPoint("position", Point3f ( 0. , 100., 0.)) ;
         m_radiance = props.getColor("radiance", Color3f ( 1.f)) ;
+        m_radiance_c = props.getColor("radiance", Color3f ( 1.f)) ;
     }
     virtual std::string toString ( ) const {
         return tfm::format(

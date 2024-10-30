@@ -41,30 +41,21 @@ Scene::~Scene() {
 }
 
 void Scene::activate() {
-
-   if (!m_sampler) {
-        /* Crear un sampler por defecto si no está definido */
-        m_sampler = static_cast<Sampler*>(
-            NoriObjectFactory::createInstance("independent", PropertyList()));
-    }
-     
-    m_emitterPDF.clear();
-
-    // Recorrer cada emisor y calcular su radiancia estimada
-    for (unsigned int i = 0; i < m_meshes.size(); ++i) {
-        if (m_meshes[i]->isEmitter()) { // Check if the mesh has an emitter
-            // Associate the mesh with its emitter for proper reference
-            m_meshes[i]->getEmitter()->setMesh(m_meshes[i]);
-
-            // Add the emitter to the scene's emitter list
-            m_emitters.push_back(m_meshes[i]->getEmitter());
-
-            // Append the maximum radiance coefficient to the PDF for sampling
-            m_emitterPDF.append(m_meshes[i]->getEmitter()->getRadiance().maxCoeff());
+     m_emitterPDF.clear();
+    for (const auto& emitter : m_emitters) {
+        if (emitter->getEmitterType() != EmitterType::EMITTER_AREA) {
+            float radiance = emitter->getRadiance().maxCoeff(); // Calcula la radiancia
+            m_emitterPDF.append(radiance);
         }
     }
 
-
+    for(unsigned int i = 0; i < m_meshes.size(); i++ ){
+        if (m_meshes[i]->isEmitter()){
+            m_meshes[i]->getEmitter()->setMesh(m_meshes[i]);
+            m_emitters.push_back(m_meshes[i]->getEmitter());
+            m_emitterPDF.append(m_meshes[i]->getEmitter()->getRadiance().maxCoeff());
+        }
+    }
 
 
     m_emitterPDF.normalize();

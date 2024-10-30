@@ -28,9 +28,30 @@ public:
             return scene->getBackground(ray);
         }
 
-        // Get the BSDF at the hit point
-        const BSDF *bsdf = its.mesh->getBSDF();
+        /**
+         * Selección un emisor aleatoriamente proporcional a su radiancia
+         */
+        float pdfEmitter;
+        const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
+        if (pdfEmitter == 0.0f || !emitter) {
+            //cout << "DEVUELVO 0\n";
+            return Lo;  // Si no hay PDF o el emisor es inválido, retornar 0
+        }
 
+
+        /**
+         * Dentro del emisor, elegir un punto.
+         * Adicionalmente lRec.ref = punto de la superficie que estamos iluminando.
+         */
+        EmitterQueryRecord lRec;
+        lRec.ref = its.p; //
+        Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.);
+        // float pdfComplete = pdfEmitter * lRec.pdf;
+
+
+        /**
+         * Si es el emisor tener en cuenta: Le(x,wo)
+         */
         if (its.mesh->isEmitter()) {
             // Crear un EmitterQueryRecord y establecer sus campos manualmente
             EmitterQueryRecord eRec;
@@ -38,34 +59,27 @@ public:
             eRec.wi = -ray.d;                      // Dirección hacia el observador (invertida)
             eRec.emitter = its.mesh->getEmitter(); // Puntero al emisor actual
             eRec.n = its.shFrame.n; 
-            // Agregar la radiancia directa emitida al total
             Lo += eRec.emitter->eval(eRec);
         }
 
-
-        float pdfEmitter;
-        const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
-        if (pdfEmitter == 0.0f || !emitter) {
-            return Lo;  // Si no hay PDF o el emisor es inválido, retornar 0
-        }
-
-        EmitterQueryRecord lRec;
-        lRec.ref = its.p;
-        Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.);
-        if (lRec.pdf <= 0.0f) {
-            return Lo;  // Si la PDF es inválida, no añadimos contribución de esta muestra
-        }
-
-        // float pdfComplete = pdfEmitter * lRec.pdf;
-
+        /**
+         * Verificar que el camino hacia la luz esté libre
+         */
         Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist - Epsilon);
         if (!scene->rayIntersect(shadowRay)) {
-            // Si no hay obstrucción, calcula el BRDF
+            /**
+             * Calcular BRDF, odescribe como la luz refleja una superficie opaca
+             */
+            const BSDF *bsdf = its.mesh->getBSDF();
             BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
             Color3f bsdfVal = bsdf->eval(bsdfRec);
+            // cout << bsdfVal.toString();
+            /**
+             * Ángulo entre la normal de la fuente de luz y la dirección al punto
+             */
             float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
             float pdfLight = emitter->pdf(lRec);
-
+            // cout << cosTheta << "\n";
             if (pdfLight > 0.0f) {
                 // Agregar contribución del emisor a la iluminación directa
                 Lo += (Le * bsdfVal * cosTheta) / (pdfLight * pdfEmitter);
