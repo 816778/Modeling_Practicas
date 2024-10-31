@@ -58,6 +58,7 @@ add_executable(nori
   include/nori/parser.h
   include/nori/proplist.h
   include/nori/ray.h
+  include/nori/reflectance.h
   include/nori/rfilter.h
   include/nori/sampler.h
   include/nori/scene.h
@@ -93,6 +94,7 @@ add_executable(nori
   src/perspective.cpp
   src/pointlight.cpp
   src/proplist.cpp
+  src/reflectance.cpp
   src/rfilter.cpp
   src/scene.cpp
   src/texture.cpp

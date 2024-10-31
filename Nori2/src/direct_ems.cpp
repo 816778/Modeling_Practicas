@@ -37,6 +37,7 @@ public:
             //cout << "DEVUELVO 0\n";
             return Lo;  // Si no hay PDF o el emisor es inválido, retornar 0
         }
+        // cout << "PdfEmiter: " << pdfEmitter << "\n";
 
 
         /**
@@ -47,7 +48,7 @@ public:
         lRec.ref = its.p; //
         Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.);
         // float pdfComplete = pdfEmitter * lRec.pdf;
-
+        // cout << Le.toString();
 
         /**
          * Si es el emisor tener en cuenta: Le(x,wo)
@@ -80,6 +81,7 @@ public:
             float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
             float pdfLight = emitter->pdf(lRec);
             // cout << cosTheta << "\n";
+            // cout << "pdfLight: " <<  pdfLight << "\n";
             if (pdfLight > 0.0f) {
                 // Agregar contribución del emisor a la iluminación directa
                 Lo += (Le * bsdfVal * cosTheta) / (pdfLight * pdfEmitter);

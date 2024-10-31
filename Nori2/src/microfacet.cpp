@@ -39,6 +39,11 @@ public:
         /* Reflectance at direction of normal incidence.
            To be used when defining the Fresnel term using the Schlick's approximation*/
         m_R0 = new ConstantSpectrumTexture(propList.getColor("R0", Color3f(0.5f)));
+
+        alpha = propList.getFloat("alpha", 0.1f);
+        /* Reflectance at direction of normal incidence.
+           To be used when defining the Fresnel term using the Schlick's approximation*/
+        R0 = propList.getColor("R0", Color3f(0.5f));
     }
 
 
@@ -46,13 +51,19 @@ public:
     Color3f eval(const BSDFQueryRecord& bRec) const {
         /* This is a smooth BRDF -- return zero if the measure
         is wrong, or when queried for illumination on the backside */
-        if (bRec.measure != ESolidAngle
-            || Frame::cosTheta(bRec.wi) <= 0
-            || Frame::cosTheta(bRec.wo) <= 0)
+        if (bRec.measure != ESolidAngle || Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0)
             return Color3f(0.0f);
 
-        
-        throw NoriException("RoughConductor::eval() is not yet implemented!");
+        Vector3f wh = (bRec.wi + bRec.wo).normalized();
+        return Color3f(0.0f);
+        // Reflectance::BeckmannNDF
+        float D = Reflectance::BeckmannNDF(wh, alpha);
+        float F = Reflectance::fresnel(bRec.wi.dot(wh), /* extIOR */ 1.0f, /* intIOR */ 1.5f);
+        float G = Reflectance::G1(bRec.wi, wh, alpha) * Reflectance::G1(bRec.wo, wh, alpha);
+
+        float cosThetaI = Frame::cosTheta(bRec.wi);
+        float cosThetaO = Frame::cosTheta(bRec.wo);
+        return (D * F * G) / (4.0f * cosThetaI * cosThetaO);
     }
 
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
@@ -125,6 +136,8 @@ public:
 private:
     Texture* m_alpha;
     Texture* m_R0;
+    float alpha;
+    Color3f R0;
 };
 
 
@@ -142,6 +155,8 @@ public:
 
         /* Tint of the glass, modeling its color */
         m_ka = new ConstantSpectrumTexture(propList.getColor("ka", Color3f(1.f)));
+
+        alpha = propList.getFloat("alpha", 0.1f);
     }
 
 
@@ -224,6 +239,7 @@ private:
     float m_intIOR, m_extIOR;
     Texture* m_alpha;
     Texture* m_ka;
+    float alpha;
 };
 
 
