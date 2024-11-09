@@ -55,7 +55,6 @@ public:
             return Color3f(0.0f);
 
         Vector3f wh = (bRec.wi + bRec.wo).normalized();
-        return Color3f(0.0f);
         // Reflectance::BeckmannNDF
         float D = Reflectance::BeckmannNDF(wh, alpha);
         float F = Reflectance::fresnel(bRec.wi.dot(wh), /* extIOR */ 1.0f, /* intIOR */ 1.5f);
