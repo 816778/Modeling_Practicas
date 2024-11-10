@@ -163,51 +163,7 @@ void Mesh::samplePosition(const Point2f &sample, Point3f &p, Normal3f &n, Point2
 /// Return the surface area of the given triangle
 float Mesh::pdf(const Point3f &p) const
 {
-	for (uint32_t i = 0; i < m_F.cols(); ++i) {
-        // bounding box del triángulo
-        BoundingBox3f bbox = getBoundingBox(i);
-
-
-        if (bbox.contains(p)) {                
-
-            // Si el punto está dentro de la bounding box del triángulo, verificarlo:
-            n_UINT i0 = m_F(0, i), i1 = m_F(1, i), i2 = m_F(2, i);
-            const Point3f &v0 = m_V.col(i0);
-            const Point3f &v1 = m_V.col(i1);
-            const Point3f &v2 = m_V.col(i2);
-
-            Vector3f edge0 = v1 - v0;
-            Vector3f edge1 = v2 - v0;
-            Vector3f vp = p - v0;
-
-            float d00 = edge0.dot(edge0);
-            float d01 = edge0.dot(edge1);
-            float d11 = edge1.dot(edge1);
-            float d20 = vp.dot(edge0);
-            float d21 = vp.dot(edge1);
-            float denom = d00 * d11 - d01 * d01;
-
-            float v = (d11 * d20 - d01 * d21) / denom;
-            float w = (d00 * d21 - d01 * d20) / denom;
-            float u = 1.0f - v - w;
-            // cout << "Bounding box contiene triangulo " << u << " - " << w << " - " << u << endl;
-            if (u >= 0 && v >= 0 && w >= 0) {
-                // float areaTriangle = surfaceArea(i);
-                float areaTriangle = 0.5f * (v1 - v0).cross(v2 - v0).norm();
-                float areaTotal = m_pdf.getNormalization();
-                // Obtener el área total de la malla desde el DiscretePDF
-                
-                // cout << this->toString();
-                // La PDF es el área del triángulo dividido por el área total
-                // cout << areaTriangle / areaTotal << endl;
-                return areaTriangle / areaTotal;
-            }
-        }
-    }
-
-    // cout << "0\n";
-	
-	return 0.;
+	return m_pdf.getNormalization()
 }
 
 

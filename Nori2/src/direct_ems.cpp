@@ -37,7 +37,7 @@ public:
             //cout << "DEVUELVO 0\n";
             return Lo;  // Si no hay PDF o el emisor es inválido, retornar 0
         }
-        // cout << "PdfEmiter: " << pdfEmitter << "\n";
+        //cout << "PdfEmiter: " << pdfEmitter << "\n";
 
 
         /**
@@ -59,7 +59,7 @@ public:
             eRec.ref = ray.o;                      // Punto de referencia (intersección)
             eRec.wi = ray.d;                      // Dirección hacia el observador (invertida)
             eRec.n = its.shFrame.n; 
-            return its.mesh->getEmitter()->eval(eRec); 
+            Lo += its.mesh->getEmitter()->eval(eRec);
         }
 
         /**
@@ -83,7 +83,15 @@ public:
             // cout << "pdfLight: " <<  pdfLight << "\n";
             if (pdfLight > 0.0f) {
                 // Agregar contribución del emisor a la iluminación directa
-                Lo += (Le * bsdfVal * cosTheta) / (pdfLight * pdfEmitter);
+                Color3f numerador = Le * bsdfVal * cosTheta;
+                float denom = pdfEmitter * pdfLight; // * pdfComplete 
+                Lo += numerador / denom;
+                
+                /*cout << "Le: " << Le.toString();
+                cout << "bsdfVal: " << bsdfVal.toString(); // bsdfVal: [0.230775, 0.226000, 0.216451]
+                cout << "numerador: " << numerador.toString(); // numerador: [7.630653, 7.472777, 7.157026]
+                cout << "\ndenom: " << denom;   // denom = 0.0407327
+                cout << "Lo: " << Lo.toString();*/
             }
         }
 
