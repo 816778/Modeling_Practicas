@@ -73,12 +73,15 @@ public:
             || Frame::cosTheta(bRec.wi) <= 0
             || Frame::cosTheta(bRec.wo) <= 0)
             return 0.0f;
+        
+         Vector3f wh = (bRec.wi + bRec.wo).normalized();
+        float pdf_wh = Warp::squareToBeckmannPdf(wh, alpha);
 
-        throw NoriException("RoughConductor::eval() is not yet implemented!");
+        return pdf_wh / (4.0f * std::abs(bRec.wi.dot(wh)));
     }
 
     /// Sample the BRDF
-    Color3f sample(BSDFQueryRecord& bRec, const Point2f& _sample) const {
+    Color3f sample(BSDFQueryRecord& bRec, const Point2f& sample) const {
         // Note: Once you have implemented the part that computes the scattered
         // direction, the last part of this function should simply return the
         // BRDF value divided by the solid angle density and multiplied by the
@@ -88,8 +91,20 @@ public:
             return Color3f(0.0f);
 
         bRec.measure = ESolidAngle;
+        Vector3f wh = Warp::squareToBeckmann(sample, alpha); // `alpha` is the roughness parameter
+        bRec.wo = 2.0f * wh.dot(bRec.wi) * wh - bRec.wi;
 
-        throw NoriException("RoughConductor::sample() is not yet implemented!");
+        if (Frame::cosTheta(bRec.wo) <= 0)
+        return Color3f(0.0f);
+
+        bRec.measure = ESolidAngle;
+
+        // Calculate the weight
+        float pdfVal = pdf(bRec);
+        if (pdfVal == 0)
+            return Color3f(0.0f);
+
+        return eval(bRec) * Frame::cosTheta(bRec.wo) / pdfVal;
     }
 
     bool isDiffuse() const {

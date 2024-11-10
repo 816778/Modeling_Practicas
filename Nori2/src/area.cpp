@@ -55,14 +55,14 @@ public:
 		// This function call can be done by bsdf sampling routines.
 		// Hence the ray was already traced for us - i.e a visibility test was already performed.
 		// Hence just check if the associated normal in emitter query record and incoming direction are not backfacing
-		float cosTheta = lRec.n.dot(lRec.wi);  // lRec.n es la normal de la superficie
+		float cosTheta = lRec.n.dot(-lRec.wi);  // lRec.n es la normal de la superficie
 		// std::cout << lRec.toString() << endl;
 		// std::cout << cosTheta << endl;
 		if (cosTheta <= 0) {
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado atrás de la luz
 		}
 
-		return m_radiance->eval(lRec.uv) * m_scale;  // Escalamos la radiancia si es necesario
+		return m_radiance->eval(lRec.uv) * m_scale; // Escalamos la radiancia si es necesario
 	}
 
 	virtual Color3f sample(EmitterQueryRecord & lRec, const Point2f & sample, float optional_u) const {
@@ -79,8 +79,9 @@ public:
 		lRec.n = n;              // Normal en el emisor
 		lRec.uv = uv;            // Coordenadas UV
 		
-		lRec.wi = (lRec.ref - p).normalized();  // Dirección hacia el punto de referencia
-		lRec.dist = (lRec.ref - p).norm();      // Distancia entre ref y p
+		lRec.dist = (lRec.p - lRec.ref).norm();      // Distancia entre ref y p
+		lRec.wi = (lRec.p - lRec.ref) / lRec.dist; //.normalized();  // Dirección hacia el punto de referencia
+		lRec.pdf = pdf(lRec);  // PDF en la dirección de la muestra
 		
 		//cout << lRec.toString();
 		// está emitiendo hacia la dirección correcta
@@ -89,15 +90,19 @@ public:
 			return Color3f(0.0f);  // No hay radiancia si estamos viendo el lado trasero del emisor
 		}
 
+		if (lRec.pdf < 1e-3) {	// if pdf is too small, assume it is black
+			return Color3f(0.0f);
+		}
+
 		// Evalúa la radiancia en la dirección de la muestra
-		Color3f radiance = m_radiance->eval(lRec.uv) * m_scale;
+		// Color3f radiance = m_radiance->eval(lRec.uv) * m_scale;
 		// Calcula la PDF en el ángulo sólido
-		float pdfPos = m_mesh->pdf(lRec.p);  // PDF de la posición
-		lRec.pdf = pdfPos * (lRec.dist * lRec.dist) / std::abs(cosTheta);  // Convertir a PDF en ángulo sólido
+		// float pdfPos = m_mesh->pdf(lRec.p);  // PDF de la posición
+		// lRec.pdf = pdfPos * (lRec.dist * lRec.dist) / std::abs(cosTheta);  // Convertir a PDF en ángulo sólido
 		// std::cout << radiance.toString() << endl;
 		// Devuelve la radiancia emitida
 		// cout << "RADIANZA: \n" << radiance;
-		return radiance;
+		return m_radiance->eval(lRec.uv);;
 	}
 
 	// Returns probability with respect to solid angle given by all the information inside the emitterqueryrecord.
@@ -107,14 +112,18 @@ public:
 	virtual float pdf(const EmitterQueryRecord &lRec) const {
 		if (!m_mesh)
 			throw NoriException("There is no shape attached to this Area light!");
+		
+		float cosTheta = lRec.n.dot(-lRec.wi);
 
-		float pdfSurface = m_mesh->pdf(lRec.p);
-		float dist2 = (lRec.ref - lRec.p).squaredNorm();
-		float cosTheta = lRec.n.dot(lRec.wi);
-		 if (cosTheta <= 0.0f) {
+		if (cosTheta <= 0.0f) {
 			return 0.0f;  // Esto significa que la luz no es visible desde el punto de vista de la cámara
 		}
-		return pdfSurface * dist2 / cosTheta;
+
+		float pdfSurface = m_mesh->pdf(lRec.p);
+		float squared_dist = static_cast<float>(pow(lRec.dist, 2));
+		// float dist2 = (lRec.ref - lRec.p).squaredNorm();
+		// return pdfSurface * dist2 / cosTheta;
+		return pdfSurface * squared_dist / cosTheta;
 	}
 
 

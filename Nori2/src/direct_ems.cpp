@@ -55,12 +55,11 @@ public:
          */
         if (its.mesh->isEmitter()) {
             // Crear un EmitterQueryRecord y establecer sus campos manualmente
-            EmitterQueryRecord eRec;
-            eRec.ref = its.p;                      // Punto de referencia (intersección)
-            eRec.wi = -ray.d;                      // Dirección hacia el observador (invertida)
-            eRec.emitter = its.mesh->getEmitter(); // Puntero al emisor actual
+            EmitterQueryRecord eRec(its.p);
+            eRec.ref = ray.o;                      // Punto de referencia (intersección)
+            eRec.wi = ray.d;                      // Dirección hacia el observador (invertida)
             eRec.n = its.shFrame.n; 
-            Lo += eRec.emitter->eval(eRec);
+            return its.mesh->getEmitter()->eval(eRec); 
         }
 
         /**
