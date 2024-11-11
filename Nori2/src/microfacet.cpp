@@ -57,7 +57,9 @@ public:
         Vector3f wh = (bRec.wi + bRec.wo).normalized();
         // Reflectance::BeckmannNDF
         float D = Reflectance::BeckmannNDF(wh, alpha);
-        float F = Reflectance::fresnel(bRec.wi.dot(wh), /* extIOR */ 1.0f, /* intIOR */ 1.5f);
+        //float F = Reflectance::fresnel(bRec.wi.dot(wh), /* extIOR */ 1.0f, /* intIOR */ 1.5f);
+        
+        Color3f F = Reflectance::fresnel(bRec.wi.dot(wh), R0);
         float G = Reflectance::G1(bRec.wi, wh, alpha) * Reflectance::G1(bRec.wo, wh, alpha);
 
         float cosThetaI = Frame::cosTheta(bRec.wi);
@@ -74,8 +76,9 @@ public:
             || Frame::cosTheta(bRec.wo) <= 0)
             return 0.0f;
         
-         Vector3f wh = (bRec.wi + bRec.wo).normalized();
+        Vector3f wh = (bRec.wi + bRec.wo).normalized();
         float pdf_wh = Warp::squareToBeckmannPdf(wh, alpha);
+        //return pdf_wh;
 
         return pdf_wh / (4.0f * std::abs(bRec.wi.dot(wh)));
     }
@@ -272,6 +275,10 @@ public:
 
         /* Albedo of the diffuse base material (a.k.a "kd") */
         m_kd = new ConstantSpectrumTexture(propList.getColor("kd", Color3f(0.5f)));
+
+        kd = propList.getColor("kd", Color3f(0.5f));
+
+        alpha = propList.getFloat("alpha", 0.1f);
     }
 
 
@@ -283,9 +290,28 @@ public:
             || Frame::cosTheta(bRec.wi) <= 0
             || Frame::cosTheta(bRec.wo) <= 0)
             return Color3f(0.0f);
+        Vector3f wh = (bRec.wi + bRec.wo).normalized();
 
+        float cosThetaI = Frame::cosTheta(bRec.wi);
+        float cosThetaO = Frame::cosTheta(bRec.wo);
 
-		throw NoriException("RoughSubstrate::eval() is not yet implemented!");
+        // Reflectance::BeckmannNDF
+        float D = Reflectance::BeckmannNDF(wh, alpha);
+        float F = Reflectance::fresnel(cosThetaI, m_extIOR, m_intIOR);
+        float G = Reflectance::G1(bRec.wi, wh, alpha) * Reflectance::G1(bRec.wo, wh, alpha);
+
+        Color3f Fmf = (D * F * G) / (4.0f * cosThetaI * cosThetaO);
+
+        Color3f term1 = 28 * kd / (23 * M_PI);
+        double eta_ratio = (m_extIOR - m_intIOR) / (m_extIOR + m_intIOR);
+        double term2 = 1 - std::pow(eta_ratio, 2);
+
+        double term3 = 1 - std::pow(1 - 0.5 * cosThetaI, 5);
+        double term4 = 1 - std::pow(1 - 0.5 * cosThetaO, 5);
+
+        Color3f Fdiff = term1 * term2 * term3 * term4;
+
+        return Fmf + Fdiff;
 	}
 
     /// Evaluate the sampling density of \ref sample() wrt. solid angles
@@ -297,7 +323,17 @@ public:
             || Frame::cosTheta(bRec.wo) <= 0)
             return 0.0f;
 
-		throw NoriException("RoughSubstrate::eval() is not yet implemented!");
+        Vector3f wh = (bRec.wi + bRec.wo).normalized();
+        float F = Reflectance::fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
+
+        // Probability of microfacet lobe (using Beckmann distribution)
+        float microfacet_pdf = Warp::squareToBeckmannPdf(wh, alpha) / (4.0f * std::abs(bRec.wi.dot(wh)));
+
+        // Probability of diffuse lobe (cosine-weighted hemisphere sampling)
+        float diffuse_pdf = Frame::cosTheta(bRec.wo) / M_PI;
+
+        // Combine based on Fresnel term
+        return F * microfacet_pdf + (1 - F) * diffuse_pdf;
     }
 
     /// Sample the BRDF
@@ -310,9 +346,30 @@ public:
         if (Frame::cosTheta(bRec.wi) <= 0)
             return Color3f(0.0f);
 
+        float F = Reflectance::fresnel(Frame::cosTheta(bRec.wi), m_extIOR, m_intIOR);
+
+        if (_sample.x() < F) {
+            // Sample microfacet lobe
+            Point2f newSample(_sample.x() / F, _sample.y());
+            Vector3f wh = Warp::squareToBeckmann(newSample, alpha);
+            bRec.wo = 2.0f * bRec.wi.dot(wh) * wh - bRec.wi;
+        } else {
+            // Sample diffuse lobe (cosine-weighted hemisphere)
+            Point2f newSample((_sample.x() - F) / (1 - F), _sample.y());
+            bRec.wo = Warp::squareToCosineHemisphere(newSample);
+        }
+
+        if (Frame::cosTheta(bRec.wo) <= 0)
+            return Color3f(0.0f);
+
         bRec.measure = ESolidAngle;
 
-		throw NoriException("RoughSubstrate::sample() is not yet implemented!");
+        // Compute PDF and return weighted BRDF value
+        float pdfVal = pdf(bRec);
+        if (pdfVal == 0)
+            return Color3f(0.0f);
+
+        return eval(bRec) * Frame::cosTheta(bRec.wo) / pdfVal;
 	}
 
     bool isDiffuse() const {
@@ -360,9 +417,10 @@ public:
         );
     }
 private:
-    float m_intIOR, m_extIOR;
+    float m_intIOR, m_extIOR, alpha;
     Texture* m_alpha;
     Texture* m_kd;
+    Color3f kd;
 };
 
 NORI_REGISTER_CLASS(RoughConductor, "roughconductor");
