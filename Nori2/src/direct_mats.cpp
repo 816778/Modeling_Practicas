@@ -44,7 +44,7 @@ public:
          */
         if (its.mesh->isEmitter()) {
             // Crear un EmitterQueryRecord y establecer sus campos manualmente
-            EmitterQueryRecord eRec(its.p);
+            EmitterQueryRecord eRec(ray.o);
             /**
              * eRec.ref = punto donde queremos calcular efecto de luz
              * eRec.p = Este punto se encuentra en la superficie del emisor
@@ -53,10 +53,11 @@ public:
              * eRec.pdf = Densidad de probabilidad de muestreo del emisor
              * eRec.wi = Dirección desde ref hacia p
              */
-            //eRec.ref = ray.o;                               
+            eRec.p = its.p;                          
             eRec.wi = ray.d.normalized();                      
             eRec.n = its.shFrame.n; 
             Lo += its.mesh->getEmitter()->eval(eRec);
+            return Lo;
         }
 
 
@@ -65,33 +66,32 @@ public:
          */
         const BSDF *bsdf = its.mesh->getBSDF();
         BSDFQueryRecord bsdfRec(its.toLocal(-ray.d));
-        bsdfRec.uv = its.uv;
-        bsdfRec.measure = ESolidAngle;
-
         Color3f bsdfSample = bsdf->sample(bsdfRec, sampler->next2D());
-        //std::cout << "BSDF Sample: " << bsdfSample.toString() << std::endl;
-        if (bsdfSample.isZero()) {
-            return Lo;  // Si no hay contribución de la BRDF, retorna solo la radiancia del emisor
-        }
+
+        float pdf = bsdf->pdf(bsdfRec);
 
         Vector3f woWorld = its.toWorld(bsdfRec.wo);
         float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
 
+        //std::cout << "BSDF Sample: " << bsdfSample.toString() << std::endl;
+        if (bsdfSample.isZero() || pdf == 0.0f || cosTheta == 0.0f) {
+            return Lo;  // Si no hay contribución de la BRDF, retorna solo la radiancia del emisor
+        }
+
+
         Ray3f shadowRay(its.p, woWorld);
         Intersection lightIts;
         if (scene->rayIntersect(shadowRay, lightIts) && lightIts.mesh->isEmitter()) {
+
             const Emitter *emitter = lightIts.mesh->getEmitter();
             EmitterQueryRecord lRec(its.p);
             lRec.p = lightIts.p;
             lRec.n = lightIts.shFrame.n;
-            const Emitter* lightEmitter = lightIts.mesh->getEmitter();
-            Color3f Le = lightEmitter->eval(lRec);
-
-            float pdf = bsdf->pdf(bsdfRec);
-
-            if (pdf > 0.0f) {
-                Lo += (Le * bsdfSample * cosTheta) / pdf;
-            }
+            Color3f Le = emitter->eval(lRec);
+            
+            Lo += (Le * bsdfSample * cosTheta) / pdf;
+        } else {
+            Lo += bsdfSample * scene->getBackground(shadowRay) * cosTheta / pdf;
         }
 
         return Lo;
