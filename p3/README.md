@@ -8,7 +8,7 @@
 
 **Extras**
 
-- 
+- Multiple Importance Sampling
 
 
 **References**

@@ -27,17 +27,6 @@ public:
         if (!scene->rayIntersect(ray, its)) {
             return scene->getBackground(ray);
         }
-        /**
-         * its.p = punto de intersección
-         * its.shFrame.n = normal en el punto de intersección
-         * its.mesh = malla en la que se encuentra el punto de intersección
-         * its.uv = coordenadas UV del punto de intersección en la superficie
-         * its.t = distancia desde el origen del rayo hasta el punto de intersección
-         */
-        /**
-         * ray.o = origen del rayo
-         * ray.d = dirección del rayo apunta al punto de intersección
-         */
 
         /**
          * Si es el emisor tener en cuenta: Le(x,wo)
@@ -45,14 +34,6 @@ public:
         if (its.mesh->isEmitter()) {
             // Crear un EmitterQueryRecord y establecer sus campos manualmente
             EmitterQueryRecord eRec(ray.o);
-            /**
-             * eRec.ref = punto donde queremos calcular efecto de luz
-             * eRec.p = Este punto se encuentra en la superficie del emisor
-             * eRec.n = Normal en el punto de intersección (luz)
-             * eRec.uv = Coordenadas UV del punto de intersección en la superficie
-             * eRec.pdf = Densidad de probabilidad de muestreo del emisor
-             * eRec.wi = Dirección desde ref hacia p
-             */
             eRec.p = its.p;                          
             eRec.wi = ray.d.normalized();                      
             eRec.n = its.shFrame.n; 
@@ -60,44 +41,75 @@ public:
             return Lo;
         }
 
+        // W em: Emitter based sampling
 
-        /**
-         * Muestra una nueva dirección usando la BRDF del material en el punto de intersección
-         */
-        const BSDF *bsdf = its.mesh->getBSDF();
-        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d));
-        Color3f bsdfSample = bsdf->sample(bsdfRec, sampler->next2D());
+        Color3f Le_em(0.0f);  // Contribution from emitter sampling
+        float pdf_em = 0.0f;
+        const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdf_em);
 
-        float pdf = bsdf->pdf(bsdfRec);
-
-        Vector3f woWorld = its.toWorld(bsdfRec.wo);
-        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
-
-        //std::cout << "BSDF Sample: " << bsdfSample.toString() << std::endl;
-        if (bsdfSample.isZero() || pdf == 0.0f || cosTheta == 0.0f) {
-            return Lo;  // Si no hay contribución de la BRDF, retorna solo la radiancia del emisor
-        }
-
-
-        Ray3f shadowRay(its.p, woWorld);
-        Intersection lightIts;
-
-        if (!scene->rayIntersect(shadowRay, lightIts)) {
-            Lo += bsdfSample * scene->getBackground(shadowRay) * cosTheta / pdf;
-            return Lo;
-        }
-
-        if (lightIts.mesh->isEmitter()) {
-
-            const Emitter *emitter = lightIts.mesh->getEmitter();
+        if (emitter && pdf_em > 0.0f) {
             EmitterQueryRecord lRec(its.p);
-            lRec.p = lightIts.p;
-            lRec.n = lightIts.shFrame.n;
-            Color3f Le = emitter->eval(lRec);
-            
-            Lo += (Le * bsdfSample * cosTheta) / pdf;
-            return Lo;
+            Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.0f);
+
+            if (Le.isZero() || lRec.pdf == 0.0f) {
+                return Le_em; 
+            }
+
+            Ray3f shadowRay(its.p, lRec.wi);
+            Intersection its_light;
+            if (!scene->rayIntersect(shadowRay, its_light) || its_light.t >= (lRec.dist - Epsilon)) {
+                // Compute the BSDF value
+                const BSDF *bsdf = its.mesh->getBSDF();
+                BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
+                Color3f f = bsdf->eval(bsdfRec);
+
+                lRec.dist = its.t;
+
+                float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
+
+                float pdf_mat = bsdf->pdf(bsdfRec); 
+
+                float denom = pdf_em * lRec.pdf + pdf_mat;
+                float w_em = (pdf_em * lRec.pdf)  / denom;
+
+                Le_em = w_em * (Le * f * cosTheta) / (pdf_em * lRec.pdf);
+            }
         }
+
+        // Step 4: Direct illumination using Material (BRDF) sampling
+        Color3f Le_mat(0.0f);  // Contribution from material sampling
+        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.uv);
+        const BSDF *bsdf = its.mesh->getBSDF();
+        Color3f bsdfSample = bsdf->sample(bsdfRec, sampler->next2D());
+        float pdf_mat = bsdf->pdf(bsdfRec);
+
+        if (!bsdfSample.isZero() && pdf_mat > 0.0f) {
+            Vector3f woWorld = its.toWorld(bsdfRec.wo);
+            float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
+
+            // Cast a shadow ray in the direction of the material sample
+            Ray3f shadowRay(its.p, woWorld);
+            Intersection lightIts;
+            if (scene->rayIntersect(shadowRay, lightIts) && lightIts.mesh->isEmitter()) {
+                const Emitter *lightEmitter = lightIts.mesh->getEmitter();
+                EmitterQueryRecord lRec(lightEmitter, its.p, lightIts.p, its.shFrame.n, lightIts.uv);
+                Color3f Le = lightEmitter->eval(lRec);
+
+                float pdf_em = lightEmitter->pdf(lRec);  // PDF using emitter sampling
+                float pdfEmitter = emitter->pdf(lRec);
+                
+                // MIS weight for material sampling
+                float w_mat = pdf_mat / (pdf_mat + pdf_em);
+                Le_mat = w_mat * (Le * bsdfSample * cosTheta) / pdf_mat;
+            }
+            else if (!scene->rayIntersect(shadowRay, lightIts) ){
+                Le_mat = bsdfSample * scene->getBackground(shadowRay) ;
+            }
+        }
+
+        // Combine the contributions from both sampling methods
+        Lo += Le_em + Le_mat;
+        return Lo;
     }
 
     std::string toString() const {
