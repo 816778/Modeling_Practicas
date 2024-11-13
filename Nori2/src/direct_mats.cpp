@@ -68,30 +68,32 @@ public:
         BSDFQueryRecord bsdfRec(its.toLocal(-ray.d));
         Color3f bsdfSample = bsdf->sample(bsdfRec, sampler->next2D());
 
-        float pdf = bsdf->pdf(bsdfRec);
+        //std::cout << "BSDF Sample: " << bsdfSample.toString() << std::endl;
+        if (bsdfSample.isZero()) {
+            return Color3f(0.0f);  // Si no hay contribución de la BRDF, retorna solo la radiancia del emisor
+        }
 
         Vector3f woWorld = its.toWorld(bsdfRec.wo);
         float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
 
-        //std::cout << "BSDF Sample: " << bsdfSample.toString() << std::endl;
-        if (bsdfSample.isZero() || pdf == 0.0f || cosTheta == 0.0f) {
-            return Lo;  // Si no hay contribución de la BRDF, retorna solo la radiancia del emisor
-        }
-
-
         Ray3f shadowRay(its.p, woWorld);
         Intersection lightIts;
-        if (scene->rayIntersect(shadowRay, lightIts) && lightIts.mesh->isEmitter()) {
+        bool intersect_ligth = scene->rayIntersect(shadowRay, lightIts);
+        
+        if (intersect_ligth && lightIts.mesh->isEmitter()) {
 
-            const Emitter *emitter = lightIts.mesh->getEmitter();
-            EmitterQueryRecord lRec(its.p);
-            lRec.p = lightIts.p;
+            EmitterQueryRecord lRec(lightIts.p);
             lRec.n = lightIts.shFrame.n;
+            lRec.wi = shadowRay.d;
+            lRec.ref = shadowRay.o;
+            
+            const Emitter *emitter = lightIts.mesh->getEmitter();
             Color3f Le = emitter->eval(lRec);
             
-            Lo += (Le * bsdfSample * cosTheta) / pdf;
-        } else {
-            Lo += bsdfSample * scene->getBackground(shadowRay) * cosTheta / pdf;
+            Lo = (Le * bsdfSample);
+        } 
+        if (!intersect_ligth) {
+            Lo = bsdfSample * scene->getBackground(shadowRay) ;
         }
 
         return Lo;

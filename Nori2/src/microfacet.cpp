@@ -57,8 +57,6 @@ public:
         Vector3f wh = (bRec.wi + bRec.wo).normalized();
         // Reflectance::BeckmannNDF
         float D = Reflectance::BeckmannNDF(wh, alpha);
-        //float F = Reflectance::fresnel(bRec.wi.dot(wh), /* extIOR */ 1.0f, /* intIOR */ 1.5f);
-        
         Color3f F = Reflectance::fresnel(bRec.wi.dot(wh), R0);
         float G = Reflectance::G1(bRec.wi, wh, alpha) * Reflectance::G1(bRec.wo, wh, alpha);
 
@@ -78,7 +76,6 @@ public:
         
         Vector3f wh = (bRec.wi + bRec.wo).normalized();
         float pdf_wh = Warp::squareToBeckmannPdf(wh, alpha);
-        //return pdf_wh;
 
         return pdf_wh / (4.0f * std::abs(bRec.wi.dot(wh)));
     }
@@ -94,18 +91,16 @@ public:
             return Color3f(0.0f);
 
         bRec.measure = ESolidAngle;
-        Vector3f wh = Warp::squareToBeckmann(sample, alpha); // `alpha` is the roughness parameter
+        Vector3f wh = Warp::squareToBeckmann(sample, alpha); // Sample the half-vector
         bRec.wo = 2.0f * wh.dot(bRec.wi) * wh - bRec.wi;
-
-        if (Frame::cosTheta(bRec.wo) <= 0)
-        return Color3f(0.0f);
 
         bRec.measure = ESolidAngle;
 
-        // Calculate the weight
         float pdfVal = pdf(bRec);
-        if (pdfVal == 0)
+
+        if (pdfVal == 0) {
             return Color3f(0.0f);
+        }
 
         return eval(bRec) * Frame::cosTheta(bRec.wo) / pdfVal;
     }
