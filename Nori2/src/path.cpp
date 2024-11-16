@@ -18,91 +18,112 @@ public:
         /* No parameters this time */
     }
 
-    /// Compute the radiance along a ray
-    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &initialRay) const {
-        Color3f Lo(0.0f);            // Final accumulated radiance
-        Color3f throughput(1.0f);     // Keeps track of accumulated color along the path
-        Ray3f ray = initialRay;       // Start with the initial ray from the camera
-        int depth = 0;                // Depth of bounces
-        const int maxDepth = 10;      // Set a maximum depth for safety (optional)
-
-        while (true) {
-            Intersection its;
-            if (!scene->rayIntersect(ray, its)) {
-                // If ray doesn't hit anything, add background color contribution
-                Lo += throughput * scene->getBackground(ray);
-                break;
-            }
-
-            // If the hit point is on an emitter, add the emitter's radiance
-            if (its.mesh->isEmitter()) {
-                
-                EmitterQueryRecord eRec(ray.o); 
-                eRec.p = its.p;
-                eRec.wi = ray.d;
-                eRec.n = its.shFrame.n;
-                if (depth == 0 ) {
-                    its.mesh->getEmitter()->eval(eRec);
-                    Color3f emitter_color = its.mesh->getEmitter()->eval(eRec);
-                    std::cout << emitter_color << "\n";
-                    return emitter_color;
-                }
-                Lo += throughput * its.mesh->getEmitter()->eval(eRec);
-            }
-
-            // Sample a random emitter in the scene for direct lighting
-            float pdfEmitter;
-            const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
-            if (emitter && pdfEmitter > 0.0f) {
-                EmitterQueryRecord lRec;
-                lRec.ref = its.p;
-                Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.0f);
-
-                // Check if the path to the emitter is unobstructed
-                Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist - Epsilon);
-                if (!scene->rayIntersect(shadowRay)) {
-                    const BSDF *bsdf = its.mesh->getBSDF();
-                    BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
-                    Color3f bsdfVal = bsdf->eval(bsdfRec);
-
-                    float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
-                    float pdfLight = emitter->pdf(lRec);
-                    
-                    if (pdfLight > 0.0f) {
-                        Color3f contribution = (Le * bsdfVal * cosTheta) / (pdfEmitter * pdfLight);
-                        Lo += throughput * contribution;
-                    }
-                }
-            }
-
-            // Sample the BSDF to get a new direction for the next bounce
-            const BSDF *bsdf = its.mesh->getBSDF();
-            BSDFQueryRecord bsdfRec(its.toLocal(-ray.d));
-            Color3f bsdfSample = bsdf->sample(bsdfRec, sampler->next2D());
-
-            // If the BSDF sample returns zero, stop the path
-            if (bsdfSample.isZero()) break;
-
-            // Update throughput with the BSDF sample and cosine factor
-            throughput *= bsdfSample * std::max(0.0f, its.shFrame.n.dot(its.toWorld(bsdfRec.wo)));
-
-            // Generate the next ray to continue the path
-            ray = Ray3f(its.p, its.toWorld(bsdfRec.wo));
-
-            // Russian roulette termination
-            if (depth >= maxDepth) break;  // Safety limit to prevent excessive depth
-            float p = std::min(throughput.maxCoeff(), 0.95f);  // Probability of continuing
-            if (sampler->next1D() > p) break;  // Terminate the path based on Russian roulette
-            throughput /= p;  // Adjust throughput to account for Russian roulette
-
-            depth++;  // Increment bounce depth
+    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f &throughput) const {
+        Color3f Lo(0.0f); 
+        Intersection its;
+        if (!scene->rayIntersect(ray, its)) {
+            return scene->getBackground(ray) * throughput;
         }
 
+
+        if (its.mesh->isEmitter()) {
+            EmitterQueryRecord eRec(its.p);
+            eRec.ref = ray.o;                   
+            eRec.wi = ray.d;
+            eRec.n = its.shFrame.n;           
+            return its.mesh->getEmitter()->eval(eRec) * throughput;
+        }
+
+
+        Point2f sample = sampler->next2D();
+        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), sample);
+
+        const BSDF *bsdf = its.mesh->getBSDF();
+        Color3f bsdfSample = bsdf->sample(bsdfRec, sample);
+
+        if (bsdfSample.isZero() || bsdfSample.hasNaN()) {
+            return Lo; // No contribution from this path
+        }
+
+        Vector3f woWorld = its.toWorld(bsdfRec.wo);
+        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
+        throughput *= bsdfSample; //* cosTheta;
+
+        float rrProb = std::min(throughput.maxCoeff(), 0.95f); // Survival probability based on throughput
+        if (sampler->next1D() > rrProb) {
+            return Lo;
+        }
+        throughput /= rrProb;
+
+        // Trace the new ray
+        Ray3f newRay(its.p, woWorld);
+        Lo += Li(scene, sampler, newRay, throughput);
         return Lo;
     }
 
+    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
+        Color3f Lo(0.0f); // Accumulated radiance along the ray
+        Color3f throughput(1.0f);
+        return Li(scene, sampler, ray, throughput);
+    }
+
+    /// Compute the radiance along a ray
+    Color3f Li2(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
+        Color3f Lo(0.0f); // Accumulated radiance along the ray
+        Color3f throughput(1.0f);
+        
+        // Find the surface that is visible in the requested direction
+        Intersection its;
+        if (!scene->rayIntersect(ray, its)) {
+            return scene->getBackground(ray); // Return environment map if no intersection
+        }
+
+
+        // Direct lighting from emitters
+        if (its.mesh->isEmitter()) {
+            EmitterQueryRecord eRec(its.p);
+            eRec.ref = ray.o;                   
+            eRec.wi = ray.d;
+            eRec.n = its.shFrame.n;           
+            Lo += its.mesh->getEmitter()->eval(eRec);
+        }
+
+
+        // Sample a new direction using the BSDF
+        Point2f sample = sampler->next2D();
+        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), sample);
+
+        const BSDF *bsdf = its.mesh->getBSDF();
+        Color3f bsdfSample = bsdf->sample(bsdfRec, sample);
+
+        if (bsdfSample.isZero() || bsdfSample.hasNaN()) {
+            return Lo; // No contribution from this path
+        }
+
+        
+
+        Vector3f woWorld = its.toWorld(bsdfRec.wo); // Transform local direction to world
+        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
+
+        // Trace the new ray
+        Ray3f newRay(its.p, woWorld);
+        Color3f indirectLighting = Li(scene, sampler, newRay);
+                // Russian Roulette termination probability
+
+        float rrProb = std::min(bsdfSample.maxCoeff(), 0.95f);
+        if (sampler->next1D() > rrProb) {
+            return Lo; // Terminate path if random number exceeds probability
+        }
+
+        // Accumulate indirect lighting contribution
+        Lo += bsdfSample * indirectLighting * cosTheta / rrProb;
+
+        return Lo; // Return the accumulated radiance
+    }
+
+
     std::string toString() const {
-        return "DirectEmsIntegrator []";
+        return "PathTracing []";
     }
 
 };
