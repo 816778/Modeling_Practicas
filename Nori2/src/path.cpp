@@ -31,7 +31,7 @@ public:
             eRec.ref = ray.o;                   
             eRec.wi = ray.d;
             eRec.n = its.shFrame.n;           
-            return its.mesh->getEmitter()->eval(eRec) * throughput;
+            Lo += its.mesh->getEmitter()->eval(eRec) * throughput;
         }
 
 
@@ -66,61 +66,6 @@ public:
         Color3f throughput(1.0f);
         return Li(scene, sampler, ray, throughput);
     }
-
-    /// Compute the radiance along a ray
-    Color3f Li2(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
-        Color3f Lo(0.0f); // Accumulated radiance along the ray
-        Color3f throughput(1.0f);
-        
-        // Find the surface that is visible in the requested direction
-        Intersection its;
-        if (!scene->rayIntersect(ray, its)) {
-            return scene->getBackground(ray); // Return environment map if no intersection
-        }
-
-
-        // Direct lighting from emitters
-        if (its.mesh->isEmitter()) {
-            EmitterQueryRecord eRec(its.p);
-            eRec.ref = ray.o;                   
-            eRec.wi = ray.d;
-            eRec.n = its.shFrame.n;           
-            Lo += its.mesh->getEmitter()->eval(eRec);
-        }
-
-
-        // Sample a new direction using the BSDF
-        Point2f sample = sampler->next2D();
-        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), sample);
-
-        const BSDF *bsdf = its.mesh->getBSDF();
-        Color3f bsdfSample = bsdf->sample(bsdfRec, sample);
-
-        if (bsdfSample.isZero() || bsdfSample.hasNaN()) {
-            return Lo; // No contribution from this path
-        }
-
-        
-
-        Vector3f woWorld = its.toWorld(bsdfRec.wo); // Transform local direction to world
-        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
-
-        // Trace the new ray
-        Ray3f newRay(its.p, woWorld);
-        Color3f indirectLighting = Li(scene, sampler, newRay);
-                // Russian Roulette termination probability
-
-        float rrProb = std::min(bsdfSample.maxCoeff(), 0.95f);
-        if (sampler->next1D() > rrProb) {
-            return Lo; // Terminate path if random number exceeds probability
-        }
-
-        // Accumulate indirect lighting contribution
-        Lo += bsdfSample * indirectLighting * cosTheta / rrProb;
-
-        return Lo; // Return the accumulated radiance
-    }
-
 
     std::string toString() const {
         return "PathTracing []";
