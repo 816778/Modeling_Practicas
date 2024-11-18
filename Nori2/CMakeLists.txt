@@ -95,6 +95,7 @@ add_executable(nori
   src/parser.cpp
   src/path.cpp
   src/path_nee.cpp
+  src/path_mis.cpp
   src/perspective.cpp
   src/pointlight.cpp
   src/proplist.cpp
