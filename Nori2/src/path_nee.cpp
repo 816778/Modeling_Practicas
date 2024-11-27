@@ -53,7 +53,11 @@ public:
             return Lo; 
         }
 
+        /**
+         * accumulate radiance from light sources if the BSDF is perfectly smooth
+         */
         if (bsdfRec.measure == EDiscrete) {
+            //std::cout << "Discrete BSDF" << std::endl;
             float pdfEmitter;
             const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
             if (emitter && pdfEmitter > 0.0f) {

@@ -35,6 +35,7 @@ public:
             eRec.n = its.shFrame.n;    
             eRec.uv = its.uv;       
             Lo += throughput * its.mesh->getEmitter()->eval(eRec);
+            return Lo;  // cambiado
         }
 
         // 3. Muestreo de emisores (MIS)
