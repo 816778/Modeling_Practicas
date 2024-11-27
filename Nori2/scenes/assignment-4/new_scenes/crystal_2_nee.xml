@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 
 <scene>
-	<integrator type="path"/>
+	<integrator type="path_nee"/>
 
 	<camera type="perspective">
 		<float name="fov" value="27.7856"/>
@@ -15,7 +15,7 @@
 	</camera>
 
 	<sampler type="independent">
-		<integer name="sampleCount" value="1024"/>
+		<integer name="sampleCount" value="256"/>
 	</sampler>
 
 	<mesh type="obj">
@@ -52,5 +52,15 @@
     	</bsdf>
 	</mesh>
 
+
+	<emitter type="pointlight">
+		<color name="radiance" value="5000, 5000, 000"/>
+		<point name="position" value="0, 0, 10"/>
+	</emitter>
+
+	<emitter type="pointlight">
+		<color name="radiance" value="5000, 5000, 000"/>
+		<point name="position" value="0, -1, 10"/>
+	</emitter>
 
 </scene>

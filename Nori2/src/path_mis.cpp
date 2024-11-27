@@ -18,108 +18,120 @@ public:
         /* No parameters this time */
     }
 
-    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f &throughput) const {
-        Color3f Lo(0.0f); 
+    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f throughput, bool wasSmooth, bool first) const {
         Intersection its;
+        Color3f Lo(0.0f);
+        bool doit = wasSmooth || first;
 
-        // 1. Si no hay intersección, devolver el mapa de entorno
+        // Check for intersection
         if (!scene->rayIntersect(ray, its)) {
-            return scene->getBackground(ray) * throughput;
+           return (doit ? throughput * scene->getBackground(ray) : Lo);
         }
 
-        // 2. Si golpea un emisor, acumular su radiancia (muestreo BSDF)
-        if (its.mesh->isEmitter()) {
+        
+        float w_mat = 0.0f, w_em = 0.0f, p_em = 0.0f, p_mat = 0.0f;
+
+        // Add emitted radiance if hitting an emitter directly
+        if (its.mesh->isEmitter() && doit) {
             EmitterQueryRecord eRec(its.p);
-            eRec.ref = ray.o;                   
+            eRec.ref = ray.o;
             eRec.wi = ray.d;
-            eRec.n = its.shFrame.n;    
-            eRec.uv = its.uv;       
+            eRec.n = its.shFrame.n;
+            eRec.uv = its.uv;
             Lo += throughput * its.mesh->getEmitter()->eval(eRec);
-            return Lo;  // cambiado
         }
 
-        // 3. Muestreo de emisores (MIS)
-        float pdfEmitter;
-        const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
-        if (emitter && pdfEmitter > 0.0f) {
-            EmitterQueryRecord lRec(its.p);
-            Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.0f);
+        // MIS: Direct illumination from BSDF sampling
+        if (its.mesh->isEmitter()) {
+            const Emitter *em_mat = its.mesh->getEmitter();
+            EmitterQueryRecord eRec(em_mat, its.p, its.p, its.shFrame.n, its.uv);
+            eRec.ref = ray.o;
+            eRec.wi = ray.d;
+            eRec.n = its.shFrame.n;
+            eRec.dist = its.t;
 
-            Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist - Epsilon);
-            Intersection lightIts;
-            bool inShadow = scene->rayIntersect(shadowRay, lightIts);
+            Color3f Le = em_mat->eval(eRec);
+            BSDFQueryRecord bsdfQR(its.toLocal(-ray.d));
+            p_mat = its.mesh->getBSDF()->pdf(bsdfQR);
+            p_em = em_mat->pdf(eRec);
 
-            // Verificar si el rayo no está en sombra
-            if (!inShadow || lightIts.t >= (lRec.dist - Epsilon)) {
-                BSDFQueryRecord lightBsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
-                Color3f bsdfVal = its.mesh->getBSDF()->eval(lightBsdfRec);
-                float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
-                float pdfLight = emitter->pdf(lRec);
-                float pdfBsdf = its.mesh->getBSDF()->pdf(lightBsdfRec);
+            Color3f Lmat = Le * throughput;
 
-                if (pdfLight > 0.0f) {
-                    // Calcular el peso MIS para emisores
-                    float w_ems = pdfLight / (pdfLight + pdfBsdf);
-                    Lo += throughput * (Le * bsdfVal * cosTheta * w_ems) / (pdfLight * pdfEmitter);
+            if (wasSmooth) {
+                w_mat = 1.0f;
+            } else {
+                if (p_em + p_mat > Epsilon) {
+                    w_mat = p_mat / (p_em + p_mat);
+                }
+            }
+
+            Lo += Lmat * w_mat;
+        }
+
+        // MIS: Direct illumination from emitter sampling
+        if (!wasSmooth) {
+            float pdf;
+            const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdf);
+
+            if (emitter && pdf > 0.0f) {
+                EmitterQueryRecord eRec(its.p);
+                Color3f Le = emitter->sample(eRec, sampler->next2D(), 0.0f);
+
+                // Shadow ray check
+                Intersection lightIts;
+                Ray3f shadowRay(its.p, eRec.wi);
+                bool inShadow = scene->rayIntersect(shadowRay, lightIts);
+
+                if (!inShadow || lightIts.t >= eRec.dist - Epsilon) {
+                    BSDFQueryRecord bsdfQR(its.toLocal(-ray.d), its.toLocal(eRec.wi), its.uv, ESolidAngle);
+                    Color3f bsdfVal = its.mesh->getBSDF()->eval(bsdfQR);
+
+                    float cosTheta = std::max(0.0f, its.shFrame.n.dot(eRec.wi));
+                    float emitterPdf = eRec.pdf * pdf;
+
+                    if (emitterPdf > Epsilon) {
+                        Color3f Lem = Le * cosTheta * bsdfVal / emitterPdf;
+
+                        p_mat = its.mesh->getBSDF()->pdf(bsdfQR);
+                        p_em = emitterPdf;
+
+                        if (p_em + p_mat > Epsilon) {
+                            w_em = p_em / (p_em + p_mat);
+                            Lo += throughput * Lem * w_em;
+                        }
+                    }
                 }
             }
         }
-
-        // 4. Muestreo de BSDF (MIS)
         Point2f sample = sampler->next2D();
-        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d), sample);
-        const BSDF *bsdf = its.mesh->getBSDF();
-        Color3f bsdfSample = bsdf->sample(bsdfRec, sample);
+        BSDFQueryRecord bsdfRec(its.toLocal(-ray.d));
+        Color3f brdfVal = its.mesh->getBSDF()->sample(bsdfRec, sample);
 
-        if (bsdfSample.isZero() || bsdfSample.hasNaN()) {
+        if (brdfVal.isZero() || brdfVal.hasNaN()) {
+            return Lo;
+        }
+        throughput *= brdfVal;
+
+        // Russian Roulette termination
+        float rrProb = std::min(throughput.maxCoeff(), 0.95f);
+        if (sampler->next1D() > rrProb) {
             return Lo; 
         }
 
         Vector3f woWorld = its.toWorld(bsdfRec.wo);
-        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
-        throughput *= bsdfSample;
-
-        // Si BSDF no es discreto, acumular radiancia del emisor golpeado
-        if (bsdfRec.measure == EDiscrete) {
-            Ray3f bsdfRay(its.p, woWorld);
-            Intersection bsdfIts;
-
-            if (scene->rayIntersect(bsdfRay, bsdfIts) && bsdfIts.mesh->isEmitter()) {
-                EmitterQueryRecord eRec(bsdfIts.p);
-                eRec.ref = its.p;                   
-                eRec.wi = woWorld;
-                eRec.n = bsdfIts.shFrame.n;
-
-                const Emitter* emitter = bsdfIts.mesh->getEmitter(); // Obtén el emisor
-                float pdfLight = emitter->pdf(eRec); // Usa el emisor directamente
-                float pdfBsdf = bsdf->pdf(bsdfRec);
-
-                if (pdfBsdf > 0.0f) {
-                    float w_bsdf = pdfBsdf / (pdfBsdf + pdfLight);
-                    Color3f Le = emitter->eval(eRec);
-                    Lo += throughput * Le * w_bsdf;
-                }
-            }
-        }
-
-        // 5. Russian Roulette
-        float rrProb = std::min(throughput.maxCoeff(), 0.95f);
-        if (sampler->next1D() > rrProb) {
-            return Lo;
-        }
         throughput /= rrProb;
 
-        // 6. Traza el siguiente rebote
-        Ray3f newRay(its.p, woWorld);
-        Lo += Li(scene, sampler, newRay, throughput);
+        // Trace the next ray recursively
+        Ray3f nextRay(its.p, woWorld);
+        Lo += Li(scene, sampler, nextRay, throughput, bsdfRec.measure == EDiscrete, false);
+
         return Lo;
     }
-
 
     Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
         Color3f Lo(0.0f); // Accumulated radiance along the ray
         Color3f throughput(1.0f);
-        return Li(scene, sampler, ray, throughput);
+        return Li(scene, sampler, ray, throughput, false, true);
     }
 
     std::string toString() const {

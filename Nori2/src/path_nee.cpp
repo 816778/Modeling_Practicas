@@ -18,7 +18,7 @@ public:
         /* No parameters this time */
     }
 
-    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f &throughput) const {
+    Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f &throughput, bool wasSmooth, bool first) const {
         Color3f Lo(0.0f); 
         Intersection its;
         /**
@@ -31,7 +31,7 @@ public:
         /**
          * Emitter sampling
          */
-        if (its.mesh->isEmitter()) {
+        if (its.mesh->isEmitter() && (wasSmooth || first)) {
             EmitterQueryRecord eRec(its.p);
             eRec.ref = ray.o;                   
             eRec.wi = ray.d;
@@ -40,6 +40,37 @@ public:
             return its.mesh->getEmitter()->eval(eRec) * throughput;
         }
         
+
+        /**
+         * accumulate radiance from light sources if the BSDF is perfectly smooth
+         */
+        //std::cout << "Discrete BSDF" << std::endl;
+        // emitter->getEmitterType() == EmitterType::EMITTER_POINT 
+        if (!wasSmooth) {
+            float pdfEmitter;
+            const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
+
+            if (emitter && pdfEmitter > 0.0f) {
+
+                EmitterQueryRecord lRec(its.p);
+                Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.0f);
+
+                Ray3f shadowRay(its.p, lRec.wi);
+                Intersection lightIts;
+                bool inShadow = scene->rayIntersect(shadowRay, lightIts);
+
+                // Verificar que no hay intersección o que el emisor está más cerca
+                if (!inShadow || lightIts.t >= (lRec.dist - Epsilon)) {
+                    BSDFQueryRecord lightBsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
+                    Color3f bsdfVal = its.mesh->getBSDF()->eval(lightBsdfRec);
+                    float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
+
+                    if (lRec.pdf  > 0.0f) {
+                        Lo += throughput * (Le * bsdfVal * cosTheta) / (lRec.pdf * pdfEmitter);
+                    }
+                }
+            }
+        }
 
         /**
          * Direct lighting
@@ -53,37 +84,7 @@ public:
             return Lo; 
         }
 
-        /**
-         * accumulate radiance from light sources if the BSDF is perfectly smooth
-         */
-        if (bsdfRec.measure == EDiscrete) {
-            //std::cout << "Discrete BSDF" << std::endl;
-            float pdfEmitter;
-            const Emitter *emitter = scene->sampleEmitter(sampler->next1D(), pdfEmitter);
-            if (emitter && pdfEmitter > 0.0f) {
-                EmitterQueryRecord lRec(its.p);
-                Color3f Le = emitter->sample(lRec, sampler->next2D(), 0.0f);
-
-                Ray3f shadowRay(its.p, lRec.wi, Epsilon, lRec.dist - Epsilon);
-                Intersection lightIts;
-                bool inShadow = scene->rayIntersect(shadowRay, lightIts);
-
-                // Verificar que no hay intersección o que el emisor está más cerca
-                if (!inShadow || lightIts.t >= (lRec.dist - Epsilon)) {
-                    BSDFQueryRecord lightBsdfRec(its.toLocal(-ray.d), its.toLocal(lRec.wi), its.uv, ESolidAngle);
-                    Color3f bsdfVal = bsdf->eval(lightBsdfRec);
-                    float cosTheta = std::max(0.0f, its.shFrame.n.dot(lRec.wi));
-                    float pdfLight = emitter->pdf(lRec);
-
-                    if (pdfLight > 0.0f) {
-                        Lo += throughput * (Le * bsdfVal /* cosTheta*/) / (pdfLight * pdfEmitter);
-                    }
-                }
-            }
-        }
-
         Vector3f woWorld = its.toWorld(bsdfRec.wo);
-        float cosTheta = std::max(0.0f, its.shFrame.n.dot(woWorld));
         throughput *= bsdfSample;// * cosTheta;
 
 
@@ -100,13 +101,13 @@ public:
          * Trace new ray
          */
         Ray3f newRay(its.p, woWorld);
-        Lo += Li(scene, sampler, newRay, throughput);
+        Lo += Li(scene, sampler, newRay, throughput, bsdfRec.measure == EDiscrete, false);
         return Lo;
     }
 
     Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const {
         Color3f throughput(1.0f);
-        return Li(scene, sampler, ray, throughput);
+        return Li(scene, sampler, ray, throughput, false, true);
     }
 
     std::string toString() const {
