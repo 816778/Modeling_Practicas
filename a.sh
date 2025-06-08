@@ -21,7 +21,15 @@ Compilar el proyecto:
 make
 ```
 
+```cmd
+cd Nori2
+cmake --build build --config Release -j 4
+```
+
 Ejecutar el proyecto:
 ```bash
 ./nori [ruta del archivo xml] e.g. ./nori ../scenes/assignment-1/bunny-normals.xml
+```
+```cmd
+.\Nori2\build\Release\nori.exe ..\scenes\assignment-1\bunny-normals.xml
 ```

@@ -1,0 +1,18 @@
+{
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "out\\build\\x64-Debug",
+      "out\\install\\x64-Debug"
+    ]
+  },
+  "ExpandedNodes": [
+    "",
+    "\\build",
+    "\\build\\ext_build",
+    "\\build\\ext_build\\nanogui",
+    "\\build\\ext_build\\nanogui\\ext_build",
+    "\\build\\ext_build\\nanogui\\ext_build\\glfw"
+  ],
+  "SelectedNode": "\\build\\ext_build\\nanogui\\ext_build\\glfw\\GLFW.sln",
+  "PreviewInSolutionExplorer": false
+}

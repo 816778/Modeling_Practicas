@@ -194,14 +194,17 @@ int main(int argc, char **argv) {
         filesystem::path path(argv[i]);
 
         try {
+            std::cout << "Loading scene \"" << argv[i] << "\". Extension: " + path.extension() << std::endl;
             if (path.extension() == "xml") {
                 sceneName = argv[i];
 
                 /* Add the parent directory of the scene file to the
                    file resolver. That way, the XML file can reference
                    resources (OBJ files, textures) using relative paths */
+                std::cout << "Adding path: " << path.parent_path() << std::endl;
                 getFileResolver()->prepend(path.parent_path());
-            } else if (path.extension() == "exr") {
+            } 
+            else if (path.extension() == "exr") {
                 /* Alternatively, provide a basic OpenEXR image viewer */
                 Bitmap bitmap(argv[1]);
                 ImageBlock block(Vector2i((int) bitmap.cols(), (int) bitmap.rows()), nullptr);
@@ -211,7 +214,8 @@ int main(int argc, char **argv) {
                 nanogui::mainloop();
                 delete screen;
                 nanogui::shutdown();
-            } else {
+            } 
+            else {
                 cerr << "Fatal error: unknown file \"" << argv[1]
                      << "\", expected an extension of type .xml or .exr" << endl;
             }
@@ -226,10 +230,19 @@ int main(int argc, char **argv) {
     }
 
     if (sceneName != "") {
+        try{
             std::unique_ptr<NoriObject> root(loadFromXML(argv[1]));
             /* When the XML root object is a scene, start rendering it .. */
             if (root->getClassType() == NoriObject::EScene)
                 render(static_cast<Scene *>(root.get()), argv[1], nogui);
+        } catch (const NoriException &e) {
+            cerr << "Fatal error: " << e.what() << endl;
+            return -1;
+        } catch (const std::exception &e) {
+            cerr << "Fatal error: " << e.what() << endl;
+            return -1;
+        }
+            
     }
 
     return 0;

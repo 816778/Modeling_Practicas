@@ -96,6 +96,7 @@ add_executable(nori
   src/path.cpp
   src/path_nee.cpp
   src/path_mis.cpp
+  src/perlin.cpp
   src/perspective.cpp
   src/pointlight.cpp
   src/proplist.cpp
