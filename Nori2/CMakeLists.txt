@@ -71,6 +71,7 @@ add_executable(nori
   # Source code files
   src/accel.cpp
   src/area.cpp
+  src/anisotropic.cpp
   src/bitmap.cpp
   src/block.cpp
   src/chi2test.cpp

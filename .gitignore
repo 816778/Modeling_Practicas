@@ -42,3 +42,9 @@ out
 
 *.exr
 final_project
+.vs
+*.tiff
+*.tif
+*.psd
+*.png
+*.c4d

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+<scene>
+	<integrator type="direct_ems"/>
+
+	<camera type="perspective">
+		<float name="fov" value="27.7856"/>
+		<transform name="toWorld">
+			<scale value="-1,1,1"/>
+			<lookat target="0, 0.893051, 4.41198" origin="0, 0.919769, 5.41159" up="0, 1, 0"/>
+		</transform>
+
+		<integer name="height" value="600"/>
+		<integer name="width" value="800"/>
+	</camera>
+
+	<sampler type="independent">
+		<integer name="sampleCount" value="256"/>
+	</sampler>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/walls.obj"/>
+
+		<bsdf type="diffuse">
+			<texture type="perlin" name="albedo">
+				<float name="scale" value="1.0"/>
+				<integer name="octaves" value="1"/>
+				<float name="scalingBias" value="0.2"/>
+				<color name="color" value="1,1,1"/>
+			</texture>
+		</bsdf>
+	</mesh>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/rightwall.obj"/>
+
+		<bsdf type="diffuse">
+			<color name="albedo" value="0.161 0.133 0.427"/>
+		</bsdf>
+	</mesh>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/leftwall.obj"/>
+
+		<bsdf type="diffuse">
+			<color name="albedo" value="0.630 0.065 0.05"/>
+		</bsdf>
+	</mesh>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/sphere1.obj"/>
+
+		<bsdf type="diffuse">
+			<texture type="perlin" name="albedo">
+				<float name="scale" value="1.0"/>
+				<integer name="octaves" value="8"/>
+				<float name="scalingBias" value="5.0"/>
+				<color name="color" value="0.5,1,1"/>
+			</texture>
+		</bsdf>
+	</mesh>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/sphere2.obj"/>
+
+		<bsdf type="diffuse">
+			<color name="albedo" value="0.4 0.4 0.4"/>
+		</bsdf>
+	</mesh>
+
+	<mesh type="obj">
+		<string name="filename" value="cbox/light.obj"/>
+
+		<emitter type="area">
+			<color name="radiance" value="40 40 40"/>
+		</emitter>
+	</mesh>
+</scene>
