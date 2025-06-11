@@ -55,6 +55,14 @@ static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block)
                 /* Sample a ray from the camera */
                 Ray3f ray;
                 Color3f value = camera->sampleRay(ray, pixelSample, apertureSample);
+                
+                /*Intersection its;
+                bool hit = scene->rayIntersect(ray, its);
+
+                if (hit) {
+                    block.putNormal(Point2i(x + offset.x(), y + offset.y()), its.shFrame.n);
+                    block.putPosition(Point2i(x + offset.x(), y + offset.y()), its.p);
+                }*/
 
                 /* Compute the incident radiance */
                 value *= integrator->Li(scene, sampler, ray);
@@ -161,6 +169,13 @@ static void render(Scene* scene, const std::string& filename, bool nogui) {
 
     /* Save tonemapped (sRGB) output using the PNG format */
     bitmap->savePNG(outputName);
+
+    /*std::unique_ptr<Bitmap> normalMap(result.toNormalBitmap());
+    normalMap->saveEXR(outputName + "_normals");
+
+    // Guardar posición
+    std::unique_ptr<Bitmap> positionMap(result.toPositionBitmap());
+    positionMap->saveEXR(outputName + "_positions");*/
 }
 
 int main(int argc, char **argv) {

@@ -1,20 +1,24 @@
-<?xml version='1.0' encoding='utf-8'?>
-
+<?xml version="1.0" ?>
 <scene>
-	<integrator type="bdpt"/> <!-- direct_ems, path_nee, path_mis -->
+	<integrator type="path_mis"/>
 
-	<camera type="perspective">
-		<float name="fov" value="27.7856"/>
+
+	<camera type="thinlens">
+		<float name="fov" value="25"/>
+
 		<transform name="toWorld">
-			<scale value="-1,1,1"/>
+			<scale value="1,1,1"/>
 			<lookat target="0, 0.893051, 4.41198" origin="0, 0.919769, 5.41159" up="0, 1, 0"/>
 		</transform>
 
-		<integer name="height" value="600"/>
+        <integer name="height" value="600"/>
 		<integer name="width" value="800"/>
+
+		<float name="apertureRadius" value="0.4"/>
+		<float name="focalDistance" value="5.4"/>
 	</camera>
 
-	<sampler type="independent">
+    <sampler type="independent">
 		<integer name="sampleCount" value="256"/>
 	</sampler>
 
@@ -42,28 +46,30 @@
 		</bsdf>
 	</mesh>
 
+	
 	<mesh type="obj">
 		<string name="filename" value="cbox/sphere1.obj"/>
 		<bsdf type="anisotropic">
-			<color name="eta" value="0.2, 0.4, 1.4"/>      <!-- material como oro -->
+			<color name="eta" value="0.2, 0.4, 1.4"/>       <!--material como oro -->
 			<color name="k" value="3.5, 2.8, 1.9"/>
 			<float name="alphaU" value="0.3"/>
-			<float name="alphaV" value="0.6"/>
+			<float name="alphaV" value="0.3"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>
+	
 
-	<!--
+	
 	<mesh type="obj">
 		<string name="filename" value="\aniosotropic\shield\normalshield_0005.obj"/>
 		
 		<bsdf type="anisotropic">
-			<float name="alphaU" value="0.1"/>
-			<float name="alphaV" value="0.5"/>
+			<float name="alphaU" value="0.25"/>
+			<float name="alphaV" value="0.26"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>
-	-->
+	
 	
 
 	<mesh type="obj">

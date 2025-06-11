@@ -77,6 +77,7 @@ add_executable(nori
   src/chi2test.cpp
   src/common.cpp
   src/depth.cpp
+  src/depth_of_field.cpp
   src/dielectric.cpp
   src/direct_ems.cpp
   src/direct_mats.cpp

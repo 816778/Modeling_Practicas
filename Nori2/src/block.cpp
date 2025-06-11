@@ -21,6 +21,8 @@
 #include <nori/rfilter.h>
 #include <nori/bbox.h>
 #include <tbb/tbb.h>
+#include "nori/bitmap.h"
+
 
 NORI_NAMESPACE_BEGIN
 
@@ -42,6 +44,10 @@ ImageBlock::ImageBlock(const Vector2i &size, const ReconstructionFilter *filter)
         m_weightsY = new float[weightSize];
         memset(m_weightsX, 0, sizeof(float) * weightSize);
         memset(m_weightsY, 0, sizeof(float) * weightSize);
+        int pixelCount = size.x() * size.y();
+        m_normals.resize(pixelCount, Color3f(0.0f));
+        m_positions.resize(pixelCount, Point3f(0.0f));
+
     }
 
     /* Allocate space for pixels and border regions */
@@ -112,6 +118,47 @@ void ImageBlock::put(ImageBlock &b) {
     block(offset.y(), offset.x(), size.y(), size.x()) 
         += b.topLeftCorner(size.y(), size.x());
 }
+
+void ImageBlock::putNormal(const Point2i &pixel, const Normal3f &n) {
+    int x = pixel.x() - m_offset.x();
+    int y = pixel.y() - m_offset.y();
+    int idx = y * m_size.x() + x;
+    if (idx >= 0 && idx < (int)m_normals.size())
+        m_normals[idx] = Color3f(n.x(), n.y(), n.z());
+        // m_normals[idx] = Color3f(n); // convertir de normal a RGB
+}
+
+void ImageBlock::putPosition(const Point2i &pixel, const Point3f &p) {
+    int x = pixel.x() - m_offset.x();
+    int y = pixel.y() - m_offset.y();
+    int idx = y * m_size.x() + x;
+    if (idx >= 0 && idx < (int)m_positions.size())
+        m_positions[idx] = p;
+}
+
+Bitmap* ImageBlock::toNormalBitmap() const {
+    Bitmap* bmp = new Bitmap(m_size);
+    for (int y = 0; y < m_size.y(); ++y) {
+        for (int x = 0; x < m_size.x(); ++x) {
+            int idx = y * m_size.x() + x;
+            bmp->coeffRef(y, x) = m_normals[idx];
+        }
+    }
+    return bmp;
+}
+
+Bitmap* ImageBlock::toPositionBitmap() const {
+    Bitmap* bmp = new Bitmap(m_size);
+    for (int y = 0; y < m_size.y(); ++y) {
+        for (int x = 0; x < m_size.x(); ++x) {
+            int idx = y * m_size.x() + x;
+            bmp->coeffRef(y, x) = Color3f(m_positions[idx].x(), m_positions[idx].y(), m_positions[idx].z()); // posición como RGB
+        }
+    }
+    return bmp;
+}
+
+
 
 std::string ImageBlock::toString() const {
     return tfm::format("ImageBlock[offset=%s, size=%s]]",

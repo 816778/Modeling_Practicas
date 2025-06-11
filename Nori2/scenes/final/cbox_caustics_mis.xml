@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 
 <scene>
-	<integrator type="bdpt"/> <!-- direct_ems, path_nee, path_mis -->
+	<integrator type="path_nee"/> <!-- direct_ems, path_nee, path_mis -->
 
 	<camera type="perspective">
 		<float name="fov" value="27.7856"/>
@@ -44,13 +44,14 @@
 
 	<mesh type="obj">
 		<string name="filename" value="cbox/sphere1.obj"/>
-		<bsdf type="anisotropic">
-			<color name="eta" value="0.2, 0.4, 1.4"/>      <!-- material como oro -->
-			<color name="k" value="3.5, 2.8, 1.9"/>
-			<float name="alphaU" value="0.3"/>
-			<float name="alphaV" value="0.6"/>
-			<color name="reflectance" value="1,1,1"/>
-		</bsdf>
+		<bsdf type="diffuse">
+
+            <texture type="perlintexture" name="albedo">
+                <integer name="width" value="256"/>
+                <integer name="height" value="256"/>
+                <integer name="levels" value="16"/>
+            </texture>
+        </bsdf>
 	</mesh>
 
 	<!--
