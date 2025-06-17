@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <scene>
-	<integrator type="path_mis"/>
+	<integrator type="path_nee"/>
 
 
 	<camera type="thinlens">
@@ -19,7 +19,7 @@
 	</camera>
 
     <sampler type="independent">
-		<integer name="sampleCount" value="256"/>
+		<integer name="sampleCount" value="128"/>
 	</sampler>
 
 	<mesh type="obj">
@@ -52,7 +52,7 @@
 		<bsdf type="anisotropic">
 			<color name="eta" value="0.2, 0.4, 1.4"/>       <!--material como oro -->
 			<color name="k" value="3.5, 2.8, 1.9"/>
-			<float name="alphaU" value="0.3"/>
+			<float name="alphaU" value="0.8"/>
 			<float name="alphaV" value="0.3"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
@@ -65,7 +65,7 @@
 		
 		<bsdf type="anisotropic">
 			<float name="alphaU" value="0.25"/>
-			<float name="alphaV" value="0.26"/>
+			<float name="alphaV" value="0.50"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>

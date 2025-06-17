@@ -35,7 +35,7 @@ using namespace nori;
 
 static int threadCount = -1;
 
-static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block) {
+static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block, ImageBlock &blockDirect, ImageBlock &blockIndirect) {
     const Camera *camera = scene->getCamera();
     const Integrator *integrator = scene->getIntegrator();
 
@@ -56,19 +56,15 @@ static void renderBlock(const Scene *scene, Sampler *sampler, ImageBlock &block)
                 Ray3f ray;
                 Color3f value = camera->sampleRay(ray, pixelSample, apertureSample);
                 
-                /*Intersection its;
-                bool hit = scene->rayIntersect(ray, its);
-
-                if (hit) {
-                    block.putNormal(Point2i(x + offset.x(), y + offset.y()), its.shFrame.n);
-                    block.putPosition(Point2i(x + offset.x(), y + offset.y()), its.p);
-                }*/
-
                 /* Compute the incident radiance */
                 value *= integrator->Li(scene, sampler, ray);
+                Color3f direct, indirect;
+                integrator->LiSeparated(scene, sampler, ray, direct, indirect);
 
                 /* Store in the image block */
                 block.put(pixelSample, value);
+                blockDirect.put(pixelSample, direct);
+                blockIndirect.put(pixelSample, indirect);
             }
         }
     }
@@ -84,7 +80,11 @@ static void render(Scene* scene, const std::string& filename, bool nogui) {
 
     /* Allocate memory for the entire output image and clear it */
     ImageBlock result(outputSize, camera->getReconstructionFilter());
+    ImageBlock resultDirect(outputSize, camera->getReconstructionFilter());
+    ImageBlock resultIndirect(outputSize, camera->getReconstructionFilter());
     result.clear();
+    resultDirect.clear();
+    resultIndirect.clear();
 
     /* Create a window that visualizes the partially rendered result */
     NoriScreen* screen = 0;
@@ -107,8 +107,9 @@ static void render(Scene* scene, const std::string& filename, bool nogui) {
         auto map = [&](const tbb::blocked_range<int>& range) {
             /* Allocate memory for a small image block to be rendered
                by the current thread */
-            ImageBlock block(Vector2i(NORI_BLOCK_SIZE),
-                camera->getReconstructionFilter());
+            ImageBlock block(Vector2i(NORI_BLOCK_SIZE), camera->getReconstructionFilter());
+            ImageBlock blockDirect(Vector2i(NORI_BLOCK_SIZE), camera->getReconstructionFilter());
+            ImageBlock blockIndirect(Vector2i(NORI_BLOCK_SIZE),camera->getReconstructionFilter());
 
             /* Create a clone of the sampler for the current thread */
             std::unique_ptr<Sampler> sampler(scene->getSampler()->clone());
@@ -116,16 +117,26 @@ static void render(Scene* scene, const std::string& filename, bool nogui) {
             for (int i = range.begin(); i < range.end(); ++i) {
                 /* Request an image block from the block generator */
                 blockGenerator.next(block);
+                
+                blockDirect.setOffset(block.getOffset());
+                blockDirect.setSize(block.getSize());
+
+                blockIndirect.setOffset(block.getOffset());
+                blockIndirect.setSize(block.getSize());
 
                 /* Inform the sampler about the block to be rendered */
                 sampler->prepare(block);
+                //sampler->prepare(blockDirect);
+                //sampler->prepare(blockIndirect);
 
                 /* Render all contained pixels */
-                renderBlock(scene, sampler.get(), block);
+                renderBlock(scene, sampler.get(), block, blockDirect, blockIndirect);
 
                 /* The image block has been processed. Now add it to
                    the "big" block that represents the entire image */
                 result.put(block);
+                resultDirect.put(blockDirect);
+                resultIndirect.put(blockIndirect);
             }
         };
 
@@ -157,25 +168,26 @@ static void render(Scene* scene, const std::string& filename, bool nogui) {
     /* Now turn the rendered image block into
        a properly normalized bitmap */
     std::unique_ptr<Bitmap> bitmap(result.toBitmap());
+    std::unique_ptr<Bitmap> bitmapDirect(resultDirect.toBitmap());
+    std::unique_ptr<Bitmap> bitmapIndirect(resultIndirect.toBitmap());
 
     /* Determine the filename of the output bitmap */
     std::string outputName = filename;
     size_t lastdot = outputName.find_last_of(".");
     if (lastdot != std::string::npos)
         outputName.erase(lastdot, std::string::npos);
-
+    auto pos = outputName.find_last_of("/\\");
+    std::string directName = outputName.substr(0, pos + 1) + "direct_" + outputName.substr(pos + 1);
+    auto indirectName = outputName.substr(0, pos + 1) + "indirect_" + outputName.substr(pos + 1);
     /* Save using the OpenEXR format */
     bitmap->saveEXR(outputName);
+    bitmapDirect->saveEXR(directName);
+    bitmapIndirect->saveEXR(indirectName);
 
     /* Save tonemapped (sRGB) output using the PNG format */
     bitmap->savePNG(outputName);
-
-    /*std::unique_ptr<Bitmap> normalMap(result.toNormalBitmap());
-    normalMap->saveEXR(outputName + "_normals");
-
-    // Guardar posición
-    std::unique_ptr<Bitmap> positionMap(result.toPositionBitmap());
-    positionMap->saveEXR(outputName + "_positions");*/
+    bitmapDirect->savePNG(directName);
+    bitmapIndirect->savePNG(indirectName);
 }
 
 int main(int argc, char **argv) {

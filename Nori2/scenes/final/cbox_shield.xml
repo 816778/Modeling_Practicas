@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 
 <scene>
-	<integrator type="bdpt"/> <!-- direct_ems, path_nee, path_mis -->
+	<integrator type="path_nee"/> <!-- direct_ems, path_nee, path_mis -->
 
 	<camera type="perspective">
 		<float name="fov" value="27.7856"/>
@@ -15,7 +15,7 @@
 	</camera>
 
 	<sampler type="independent">
-		<integer name="sampleCount" value="256"/>
+		<integer name="sampleCount" value="4"/>
 	</sampler>
 
 	<mesh type="obj">
@@ -49,22 +49,20 @@
 			<color name="k" value="3.5, 2.8, 1.9"/>
 			<float name="alphaU" value="0.3"/>
 			<float name="alphaV" value="0.6"/>
-			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>
 
-	<!--
+	
 	<mesh type="obj">
 		<string name="filename" value="\aniosotropic\shield\normalshield_0005.obj"/>
-		
+	
 		<bsdf type="anisotropic">
 			<float name="alphaU" value="0.1"/>
 			<float name="alphaV" value="0.5"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>
-	-->
-	
+
 
 	<mesh type="obj">
 		<string name="filename" value="cbox/light.obj"/>

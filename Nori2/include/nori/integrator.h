@@ -53,6 +53,13 @@ public:
      */
     virtual Color3f Li(const Scene *scene, Sampler *sampler, const Ray3f &ray) const = 0;
 
+
+    virtual void LiSeparated(const Scene *scene, Sampler *sampler, const Ray3f &ray, Color3f &direct, Color3f &indirect, Color3f throughput = Color3f(1.f), bool wasSmooth = false, bool first = true) const {
+        direct = Color3f(0.f);
+        indirect = Color3f(0.f);
+    }
+    
+
     /**
      * \brief Return the type of object (i.e. Mesh/BSDF/etc.) 
      * provided by this instance

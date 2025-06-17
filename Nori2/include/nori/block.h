@@ -89,8 +89,6 @@ public:
     /// Clear all contents
     void clear() { 
         setConstant(Color4f()); 
-        std::fill(m_normals.begin(), m_normals.end(), Color3f(0.0f));
-        std::fill(m_positions.begin(), m_positions.end(), Point3f(0.0f));
     }
 
     /// Record a sample with the given position and radiance value
@@ -113,12 +111,6 @@ public:
     /// Return a human-readable string summary
     std::string toString() const;
 
-    void putNormal(const Point2i &pixel, const Normal3f &n);
-    void putPosition(const Point2i &pixel, const Point3f &p);
-
-    Bitmap* toNormalBitmap() const;
-    Bitmap* toPositionBitmap() const;
-
 protected:
     Point2i m_offset;
     Vector2i m_size;
@@ -129,8 +121,6 @@ protected:
     float *m_weightsY = nullptr;
     float m_lookupFactor = 0;
     mutable tbb::mutex m_mutex;
-    std::vector<Color3f> m_normals;   // normales en espacio de mundo (RGB)
-    std::vector<Point3f> m_positions; // posición de intersección
 };
 
 /**
