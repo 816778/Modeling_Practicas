@@ -50,6 +50,7 @@ add_executable(nori
   include/nori/common.h
   include/nori/dpdf.h
   include/nori/frame.h
+  include/nori/frame_anisotropic.h
   include/nori/gui.h
   include/nori/integrator.h
   include/nori/emitter.h

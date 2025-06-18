@@ -65,7 +65,7 @@
 		
 		<bsdf type="anisotropic">
 			<float name="alphaU" value="0.25"/>
-			<float name="alphaV" value="0.50"/>
+			<float name="alphaV" value="0.5"/>
 			<color name="reflectance" value="1,1,1"/>
 		</bsdf>
 	</mesh>

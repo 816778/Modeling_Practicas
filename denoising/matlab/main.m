@@ -1,21 +1,19 @@
 % main.m
 
 % Parámetros de la función
-f = 2;    % tamaño del parche
-r = 3;    % radio de búsqueda
-k = 1.0;  % parámetro de suavizado
+f = 3;    % tamaño del parche
+r = 5;    % radio de búsqueda
+k = 0.2;  % parámetro de suavizado
 file_name = '../dof';
-% Llamar a la función de denoising
+
 Nldenoise(file_name, f, r, k);
 
-exit;
-file_name = '../indirect_cbox_shield';
+file_name = '../indirect_dof';
 
 indirect_denoised = Nldenoise_2(file_name, f, r, k);
-direct = exrread('../direct_cbox_shield.exr');
+direct = exrread('../direct_dof.exr');
 
 final = indirect_denoised + direct;
 
-exrwrite(final, 'resultado_final.exr');
-
+exrwrite(final, '../resultado_final.exr');
 disp('Proceso de denoising completado.');

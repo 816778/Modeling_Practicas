@@ -1,4 +1,4 @@
-function Nldenoise(file_name, f, r, k)
+function flt = Nldenoise(file_name, f, r, k)
      %inputs, dat and datvar
     dat = exrread(strcat(file_name, '.exr'));
     datvar = exrread(strcat(file_name, '.exr'));
@@ -28,8 +28,7 @@ function Nldenoise(file_name, f, r, k)
     end
     flt =flt./wgtsum;
     exrwrite(flt, strcat(file_name, '_denoised.exr'));
-
-
+    
 end
 
        

@@ -20,6 +20,7 @@
 
 #include <nori/object.h>
 #include <nori/frame.h>
+#include <nori/frame_anisotropic.h>
 #include <nori/bbox.h>
 #include <nori/dpdf.h>
 
@@ -45,9 +46,9 @@ struct Intersection {
     /// UV coordinates, if any
     Point2f uv;
     /// Shading frame (based on the shading normal)
-    Frame shFrame;
+    Frame_Anisotropic shFrame;
     /// Geometric frame (based on the true geometry)
-    Frame geoFrame;
+    Frame_Anisotropic geoFrame;
     /// Pointer to the associated mesh
     const Mesh *mesh;
 

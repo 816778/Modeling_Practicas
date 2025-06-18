@@ -24,28 +24,29 @@ public:
     AnisotropicMicrofacet (const PropertyList &propList) {
         m_alphaU = propList.getFloat("alphaU", 0.2f);
         m_alphaV = propList.getFloat("alphaV", 0.4f);
-        if (m_alphaU < 0.3f) m_alphaU = clamp(2 * m_alphaU, 0.1f, 0.3f);
-        if (m_alphaV < 0.3f) m_alphaV = clamp(2 * m_alphaV, 0.1f, 0.3f);
+        if (m_alphaU < 0.1f) m_alphaU = 0.1;
+        if (m_alphaV < 0.1f) m_alphaV = 0.1;
         m_reflectance = propList.getColor("reflectance", Color3f(1.0f));
-        m_eta = propList.getColor("eta", Color3f(0.17, 0.35, 1.5)); // ejemplo: oro ~ (0.17, 0.35, 1.5)
-        m_k   = propList.getColor("k",   Color3f(3.1, 2.7, 1.9)); // ejemplo: oro ~ (3.1, 2.7, 1.9)
+        m_eta = propList.getColor("eta", Color3f(0.17, 0.35, 1.5)); //índice de refracción del material
+        m_k   = propList.getColor("k",   Color3f(3.1, 2.7, 1.9)); // extinción (cuánto absorbe el metal por dentro)
     }
 
+    // ¿Cuánta luz refleja esta superficie en esta dirección wo, viniendo desde wi?
     Color3f eval(const BSDFQueryRecord &bRec) const override {
         if (bRec.measure != ESolidAngle || Frame::cosTheta(bRec.wi) <= 0 || Frame::cosTheta(bRec.wo) <= 0)
         { return Color3f(0.0f);}
 
-        // half vector
+        // half vector: Representa la dirección de la microfaceta que reflejaría wi hacia wo
         Vector3f wm = (bRec.wi + bRec.wo).normalized();
-        float Dval = D(wm);
+        float Dval = D(wm); // Dval es la densidad de microfacetas en la dirección wm
 
-        // Fresnel de Schlick
+        // Fresnel
         float cosTheta = bRec.wo.dot(wm);
-        Color3f F = fresnelConductor(cosTheta, m_eta, m_k);
+        Color3f F = fresnelConductor(cosTheta, m_eta, m_k); // cuánta luz se refleja en función del ángulo y del metal
         // Color3f F = m_reflectance + (Color3f(1.0f) - m_reflectance) * std::pow(1.0f - cosTheta, 5.0f);
         
         // Geometría: masking-shadowing
-        float Gval = G(bRec.wi, bRec.wo); 
+        float Gval = G(bRec.wi, bRec.wo); ///////////////////////////////////////////// Puede estar mal esto?
 
         float denom = 4.0f * Frame::cosTheta(bRec.wi) * Frame::cosTheta(bRec.wo);
         return (Dval * F * Gval) / denom;
@@ -76,7 +77,7 @@ public:
 
         // Transform w to hemispherical configuration
         Vector3f wi = bRec.wi;
-        Vector3f wh = Vector3f(m_alphaU * wi.x(), m_alphaV * wi.y(), wi.z());
+        Vector3f wh = Vector3f(m_alphaU * wi.x(), m_alphaV * wi.y(), wi.z()); // se deforma la esfera en una elipse para reflejar la anisotropía
         wh = wh.normalized();
         if (wh.z() < 0.0f) {wh = -wh;}
 
@@ -148,25 +149,24 @@ private:
     }
 
     float Lambda(const Vector3f &v) const {
-        if (Frame::cosTheta(v) <= 0.0f)
-            return 0.0f;
+    float tanTheta = Frame::tanTheta(v);
+    float tan2Theta = tanTheta * tanTheta;
 
-        float tanTheta = Frame::tanTheta(v);
-        if (tanTheta == 0.0f)
-            return 0.0f;
+    if (!std::isfinite(tan2Theta))  
+        return 0.0f;
 
-        float cosPhi2 = Frame::cosPhi2(v);
-        float sinPhi2 = Frame::sinPhi2(v);
+    float cosPhi = Frame::cosPhi(v);
+    float sinPhi = Frame::sinPhi(v);
 
-        float alpha2 = (cosPhi2 / (m_alphaU * m_alphaU)) + (sinPhi2 / (m_alphaV * m_alphaV));
-        float alpha = std::sqrt(1.0f / alpha2);
+    float alphaX = m_alphaU;
+    float alphaY = m_alphaV;
 
-        float a = 1.0f / (alpha * tanTheta);
-        if (a < 1.6f)
-            return (1.0f - 1.259f * a + 0.396f * a * a) / (3.535f * a + 2.181f * a * a);
-        else
-            return 0.0f;
-    }
+    float alpha2 = Sqr(cosPhi * alphaX) + Sqr(sinPhi * alphaY);
+
+    return (std::sqrt(1.0f + alpha2 * tan2Theta) - 1.0f) * 0.5f;
+}
+
+
 
     float G1(const Vector3f &v) const {
         return 1.0f / (1.0f + Lambda(v));
@@ -175,6 +175,7 @@ private:
     float D_2(const Vector3f &w, Vector3f &wm) const{
         return G1(w) / std::abs(wm.z()) * D(wm) * AbsDot(w, wm);
     }
+
     float D(const Vector3f &m) const {
         float cosThetaM = Frame::cosTheta(m);
         float cosThetaM2 = cosThetaM * cosThetaM;

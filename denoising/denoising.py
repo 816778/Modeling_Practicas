@@ -29,7 +29,7 @@ def bilateral_denoise(indirect, sigma_d=0.4, sigma_r=2):
     radius = int(3 * sigma_d)
     window = 2 * radius + 1
     X, Y = np.meshgrid(np.arange(-radius, radius + 1), np.arange(-radius, radius + 1))
-    spatial_weights = np.exp(-(X**2 + Y**2) / (2 * sigma_d**2))
+    spatial_weights = np.exp(-(X**2 + Y**2) / (2 * sigma_d**2)) # Si estás cerca físicamente 
     spatial_weights = spatial_weights[:, :, np.newaxis]
 
     for i in range(radius, height - radius):
@@ -42,7 +42,7 @@ def bilateral_denoise(indirect, sigma_d=0.4, sigma_r=2):
             range_weights = np.exp(-(color_diff**2) / (2 * sigma_r**2))
 
             # Producto punto (spatial * range) por canal
-            weights = spatial_weights * range_weights
+            weights = spatial_weights * range_weights # Si te pareces en color
             norm = np.sum(weights, axis=(0, 1))
             weighted_sum = np.sum(region * weights, axis=(0, 1))
             output[i, j, :] = weighted_sum / (norm + 1e-8)

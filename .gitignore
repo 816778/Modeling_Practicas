@@ -48,3 +48,5 @@ final_project
 *.psd
 *.png
 *.c4d
+denoising\noise
+noise
